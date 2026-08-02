@@ -1,0 +1,39 @@
+# FAQ
+
+## Is this a circuit breaker?
+
+No. It probabilistically sheds a bounded share while retaining probes. A
+circuit breaker has explicit open and recovery states and may reject all work.
+
+## Is the limit shared across pods?
+
+No. State and random decisions are local to one process. Use a real distributed
+rate or concurrency control when a fleet-wide bound is required.
+
+## Why do local rejections increase requests?
+
+That is part of the Google SRE equation: application demand continues to be
+visible while the client self-regulates. Local rejection never increments
+downstream samples, overloads, or failures.
+
+## Why are generic errors not overload?
+
+Most errors do not prove downstream saturation. Over-classification can create
+a feedback loop and unnecessary shedding. Map only explicit, service-owned
+overload signals.
+
+## Why did a new pod admit more work?
+
+It started with an empty local window. Plan cold-start aggregate admission at
+the maximum replica count and use readiness or application-owned ramping when
+needed.
+
+## Can critical traffic bypass every control?
+
+No. Priority only scales adaptive rejection. Hard bulkhead, rate, authorization,
+and concurrency controls still apply.
+
+## How is policy reconfigured?
+
+Create a new immutable policy and throttler. This resets local history. Run
+revisions side by side only when the application explicitly owns that rollout.
