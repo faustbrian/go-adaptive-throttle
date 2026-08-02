@@ -34,10 +34,11 @@ if err != nil {
 value, err := throttle.Execute(ctx, throttler, "catalog-api", fetchCatalog)
 ```
 
-The default classifier treats success as accepted, ordinary errors as
-non-overload downstream failures, and caller cancellation, deadlines, and
-local adaptive rejection as ignored. Applications must explicitly classify
-vendor-specific overload results.
+The default classifier treats success as accepted and ignores every error.
+Applications must explicitly classify proven downstream failures and
+vendor-specific overload results. This conservative default prevents local
+rate-limit, bulkhead, breaker, retry, and other policy rejections from becoming
+downstream samples.
 
 ## Design guarantees
 

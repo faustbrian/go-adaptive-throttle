@@ -77,16 +77,34 @@ func TestProbabilityCapPreservesProbeFlowAndRandomAnomaliesAdmit(t *testing.T) {
 	}
 }
 
-func TestRandomValueEqualToProbabilityAdmits(t *testing.T) {
+func TestFixedRandomStreamMakesExactProbabilityBoundaryDecisions(t *testing.T) {
 	t.Parallel()
 
-	throttler := newTestThrottler(t, fixedRandom{value: 0.5})
-	if err := throttler.Record("inventory", throttle.Classification{Outcome: throttle.DownstreamOverload}); err != nil {
-		t.Fatalf("Record() error = %v", err)
-	}
-	permit, err := throttler.TryAcquire(context.Background(), "inventory")
-	if err != nil || permit == nil {
-		t.Fatalf("TryAcquire() = (%v, %v), equality must admit", permit, err)
+	for _, test := range []struct {
+		name       string
+		sample     float64
+		wantReject bool
+	}{
+		{name: "immediately below", sample: math.Nextafter(0.5, 0), wantReject: true},
+		{name: "equal", sample: 0.5, wantReject: false},
+		{name: "immediately above", sample: math.Nextafter(0.5, 1), wantReject: false},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			throttler := newTestThrottler(t, fixedRandom{value: test.sample})
+			if err := throttler.Record("inventory", throttle.Classification{Outcome: throttle.DownstreamOverload}); err != nil {
+				t.Fatalf("Record() error = %v", err)
+			}
+			permit, err := throttler.TryAcquire(context.Background(), "inventory")
+			if test.wantReject {
+				if !errors.Is(err, throttle.ErrRejected) || permit != nil {
+					t.Fatalf("TryAcquire() = (%v, %v), sample below probability must reject", permit, err)
+				}
+				return
+			}
+			if err != nil || permit == nil {
+				t.Fatalf("TryAcquire() = (%v, %v), sample at or above probability must admit", permit, err)
+			}
+		})
 	}
 }
 

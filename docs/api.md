@@ -40,11 +40,12 @@ recover panics, or change the operation error.
 | `Ignored` | 0 | 0 | 0 | excluded cancellation, deadline, or local policy result |
 | `LocalRejection` | +1 | 0 | 0 | application attempt shed before downstream execution |
 
-The default classifier never infers overload from a generic error. It ignores
-`context.Canceled`, `context.DeadlineExceeded`, and `ErrRejected`; it treats any
-other error as an ordinary downstream failure. Rate limiter, bulkhead, breaker,
-and other local-policy errors therefore do not become overload evidence unless
-the application explicitly maps them to `DownstreamOverload`.
+The default classifier never infers downstream activity from an error. It
+ignores `context.Canceled`, `context.DeadlineExceeded`, `ErrRejected`, and every
+unknown error. This ensures rate limiter, bulkhead, breaker, retry, and other
+local-policy rejections do not become downstream samples. Applications must
+provide a classifier to map proven completed downstream work to
+`DownstreamFailure` or explicit overload evidence to `DownstreamOverload`.
 
 Timeouts are ambiguous. Map one to overload only when the timeout scope proves
 it measured downstream saturation rather than caller budget, queue wait, or

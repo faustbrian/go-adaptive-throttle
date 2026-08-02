@@ -133,7 +133,7 @@ func TestSparsePartialRampBurstAndOscillationSimulation(t *testing.T) {
 	}
 }
 
-func TestReplicaRevisionDrainAndCorrelatedDecisionSimulation(t *testing.T) {
+func TestReplicaRevisionSIGTERMDrainAbruptDeathAndCorrelatedDecisionSimulation(t *testing.T) {
 	t.Parallel()
 
 	clock := &fixedClock{now: time.Unix(1_700_000_000, 0)}

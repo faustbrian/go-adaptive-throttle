@@ -18,7 +18,7 @@ func TestDefaultClassifierIsConservative(t *testing.T) {
 		{err: context.Canceled, outcome: Ignored, reason: ReasonCallerCanceled},
 		{err: context.DeadlineExceeded, outcome: Ignored, reason: ReasonCallerDeadline},
 		{err: ErrRejected, outcome: Ignored, reason: ReasonLocalPolicy},
-		{err: errors.New("ordinary failure"), outcome: DownstreamFailure, reason: ReasonDownstreamFailure},
+		{err: errors.New("unknown failure"), outcome: Ignored, reason: ReasonUnspecified},
 	}
 	for _, test := range tests {
 		classification := defaultClassifier(Completion{Err: test.err})

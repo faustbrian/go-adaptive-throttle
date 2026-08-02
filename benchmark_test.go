@@ -4,6 +4,8 @@ import (
 	"context"
 	"testing"
 	"time"
+
+	"github.com/failsafe-go/failsafe-go/adaptivethrottler"
 )
 
 type benchmarkClock struct{ now time.Time }
@@ -77,4 +79,56 @@ func BenchmarkGoogleSREEquation(b *testing.B) {
 	for b.Loop() {
 		_ = rejectionProbability(snapshot, policy)
 	}
+}
+
+func BenchmarkFailsafeGoEquivalentHealthy(b *testing.B) {
+	throttler := adaptivethrottler.NewBuilder[struct{}]().
+		WithFailureRateThreshold(0.5, 10, 2*time.Minute).
+		WithMaxRejectionRate(0.9).
+		Build()
+	b.ReportAllocs()
+	b.ResetTimer()
+	for b.Loop() {
+		if !throttler.TryAcquirePermit() {
+			b.Fatal("healthy Failsafe-Go throttler rejected")
+		}
+		throttler.RecordSuccess()
+	}
+}
+
+func BenchmarkEquivalentHealthyContention(b *testing.B) {
+	b.Run("adaptive-throttle", func(b *testing.B) {
+		throttler := benchmarkThrottler(b, nil)
+		ctx := context.Background()
+		b.ReportAllocs()
+		b.RunParallel(func(pb *testing.PB) {
+			for pb.Next() {
+				permit, err := throttler.TryAcquire(ctx, "backend")
+				if err != nil {
+					b.Error(err)
+					return
+				}
+				if err := permit.Record(Classification{Outcome: Accepted}); err != nil {
+					b.Error(err)
+					return
+				}
+			}
+		})
+	})
+	b.Run("failsafe-go", func(b *testing.B) {
+		throttler := adaptivethrottler.NewBuilder[struct{}]().
+			WithFailureRateThreshold(0.5, 10, 2*time.Minute).
+			WithMaxRejectionRate(0.9).
+			Build()
+		b.ReportAllocs()
+		b.RunParallel(func(pb *testing.PB) {
+			for pb.Next() {
+				if !throttler.TryAcquirePermit() {
+					b.Error("healthy Failsafe-Go throttler rejected")
+					return
+				}
+				throttler.RecordSuccess()
+			}
+		})
+	})
 }

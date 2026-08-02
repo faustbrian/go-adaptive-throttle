@@ -4,7 +4,7 @@ FUZZ_TIME ?= 1s
 BENCH_TIME ?= 100ms
 RACE_COUNT ?= 3
 
-.PHONY: benchmark check docs fmt fuzz race test vet
+.PHONY: benchmark check docs fault fmt fuzz leak race stress test vet
 
 check:
 	$(MAKE) -C ../.. check MODULES=pkg/adaptive-throttle
@@ -26,6 +26,18 @@ fuzz:
 	go test -run='^$$' -fuzz=FuzzGoogleSREProbabilityFiniteAndBounded -fuzztime=$(FUZZ_TIME) .
 	go test -run='^$$' -fuzz=FuzzBucketIndexBounded -fuzztime=$(FUZZ_TIME) .
 	go test -run='^$$' -fuzz=FuzzBoundedEventSequences -fuzztime=$(FUZZ_TIME) .
+	go test -run='^$$' -fuzz=FuzzPolicyConfigurationRemainsBounded -fuzztime=$(FUZZ_TIME) .
+	go test -run='^$$' -fuzz=FuzzCounterSaturationMatchesReference -fuzztime=$(FUZZ_TIME) .
+	go test -run='^$$' -fuzz=FuzzClassifierOutcomesFailSafely -fuzztime=$(FUZZ_TIME) .
+
+stress:
+	go test -run='^(TestConcurrentAdmissionRecordSnapshotResetAndEviction|TestFixedSeedStatisticalRejectionMatchesJustifiedConfidenceBound|TestRollingWindowMatchesDeterministicReferenceModelAtEveryTransition)$$' -count=25 .
+
+fault:
+	go test -run='^(TestProbabilityCapPreservesProbeFlowAndRandomAnomaliesAdmit|TestClassifierAndPriorityPanicsFailSafely|TestBackwardClockJumpResetsHistoryEvenWithinBucket|TestDefaultClassifierExcludesUnknownPolicyRejectionFromDownstreamHistory)$$' -count=10 .
+
+leak:
+	go test -run='^TestConcurrentAdmissionRecordSnapshotResetAndEviction$$' -count=10 .
 
 docs:
 	go test -run='^Example' ./...

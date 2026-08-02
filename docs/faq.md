@@ -16,11 +16,12 @@ That is part of the Google SRE equation: application demand continues to be
 visible while the client self-regulates. Local rejection never increments
 downstream samples, overloads, or failures.
 
-## Why are generic errors not overload?
+## Why are generic errors ignored?
 
-Most errors do not prove downstream saturation. Over-classification can create
-a feedback loop and unnecessary shedding. Map only explicit, service-owned
-overload signals.
+An error alone does not prove that downstream work ran. It may come from a rate
+limit, bulkhead, breaker, retry wrapper, caller budget, or another local policy.
+Treat proven completed work as `DownstreamFailure`, and map only explicit,
+service-owned overload signals to `DownstreamOverload`.
 
 ## Why did a new pod admit more work?
 

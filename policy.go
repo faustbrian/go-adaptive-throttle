@@ -274,7 +274,7 @@ func defaultClassifier(completion Completion) Classification {
 	case errors.Is(completion.Err, ErrRejected):
 		return Classification{Outcome: Ignored, Reason: ReasonLocalPolicy}
 	default:
-		return Classification{Outcome: DownstreamFailure, Reason: ReasonDownstreamFailure}
+		return Classification{Outcome: Ignored, Reason: ReasonUnspecified}
 	}
 }
 

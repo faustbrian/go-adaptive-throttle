@@ -94,6 +94,40 @@ func TestDefaultClassifierExcludesLocalDeadlineFromOverloadHistory(t *testing.T)
 	}
 }
 
+func TestDefaultClassifierExcludesUnknownPolicyRejectionFromDownstreamHistory(t *testing.T) {
+	t.Parallel()
+
+	policy, err := throttle.NewPolicy(throttle.PolicyConfig{
+		Revision:                    "classification-safety-v1",
+		Window:                      throttle.WindowConfig{BucketDuration: time.Second, BucketCount: 2},
+		MinimumSamples:              1,
+		Algorithm:                   throttle.GoogleSRE{AcceptMultiplier: 1},
+		MaxRejectionProbability:     0.9,
+		MinimumAdmissionProbability: 0.1,
+		MaxResources:                1,
+		Clock:                       &fixedClock{now: time.Unix(1_700_000_000, 0)},
+		Random:                      fixedRandom{value: 0.99},
+	})
+	if err != nil {
+		t.Fatalf("NewPolicy() error = %v", err)
+	}
+	throttler, err := throttle.New(policy)
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	localPolicyRejection := errors.New("other policy rejected")
+	_, operationErr := throttle.Execute(context.Background(), throttler, "backend", func(context.Context) (struct{}, error) {
+		return struct{}{}, localPolicyRejection
+	})
+	if !errors.Is(operationErr, localPolicyRejection) {
+		t.Fatalf("Execute() error = %v, want local policy rejection", operationErr)
+	}
+	snapshot, _ := throttler.Snapshot("backend")
+	if snapshot.Ignored != 1 || snapshot.Requests != 0 || snapshot.Accepts != 0 || snapshot.Samples != 0 || snapshot.Failures != 0 || snapshot.Overloads != 0 {
+		t.Fatalf("Snapshot() = %+v, unknown policy rejection must not become a downstream sample", snapshot)
+	}
+}
+
 func TestExecuteDoesNotInvokeRejectedOperation(t *testing.T) {
 	t.Parallel()
 

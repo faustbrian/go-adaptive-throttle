@@ -3,16 +3,22 @@ package throttle_test
 import (
 	"context"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	throttle "github.com/faustbrian/golib/pkg/adaptive-throttle"
 )
 
+type raceClock struct{ nanoseconds atomic.Int64 }
+
+func (c *raceClock) Now() time.Time { return time.Unix(0, c.nanoseconds.Load()) }
+
 func TestConcurrentAdmissionRecordSnapshotResetAndEviction(t *testing.T) {
 	t.Parallel()
 
-	clock := &fixedClock{now: time.Unix(1_700_000_000, 0)}
+	clock := &raceClock{}
+	clock.nanoseconds.Store(time.Unix(1_700_000_000, 0).UnixNano())
 	policy, err := throttle.NewPolicy(throttle.PolicyConfig{
 		Revision:                    "race-v1",
 		Window:                      throttle.WindowConfig{BucketDuration: time.Second, BucketCount: 4},
@@ -39,7 +45,13 @@ func TestConcurrentAdmissionRecordSnapshotResetAndEviction(t *testing.T) {
 			defer workers.Done()
 			resource := string(rune('a' + worker%8))
 			for iteration := range 250 {
-				permit, acquireErr := throttler.TryAcquire(context.Background(), resource)
+				ctx := context.Background()
+				if iteration%17 == 0 {
+					canceled, cancel := context.WithCancel(ctx)
+					cancel()
+					ctx = canceled
+				}
+				permit, acquireErr := throttler.TryAcquire(ctx, resource)
 				if acquireErr == nil {
 					outcome := throttle.Accepted
 					if iteration%7 == 0 {
@@ -53,6 +65,10 @@ func TestConcurrentAdmissionRecordSnapshotResetAndEviction(t *testing.T) {
 				if iteration%101 == 0 {
 					throttler.Reset(resource)
 				}
+				if iteration%113 == 0 {
+					throttler.ResetAll()
+				}
+				clock.nanoseconds.Add(int64(10 * time.Millisecond))
 			}
 		}()
 	}

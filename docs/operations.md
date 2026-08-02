@@ -34,6 +34,20 @@ must use fixed seeds and documented confidence bounds. Compare policies only
 when their classifiers, windows, offered load, and failure semantics are
 equivalent.
 
+The executable campaign includes a bucket-by-bucket differential reference
+model, a 5,292-state Failsafe-Go probability grid, exact random samples
+immediately below, at, and above the decision boundary, a 100,000-draw fixed
+seed statistical experiment, concurrent reset/eviction/rollover/cancellation,
+goleak process-exit checks, repeated fault and stress targets, and deterministic
+fleet/HPA models. Run `make fuzz`, `make race`, `make stress`, `make fault`, and
+`make leak` for the focused campaigns.
+
+The package starts no goroutines and owns no background resources, so shutdown
+has no asynchronous state transition to race. SIGTERM drain is modeled by
+stopping admission and optionally calling `ResetAll`; dropping a throttler
+models abrupt process death. Outstanding permits are generation-bound and
+cannot recreate reset or discarded histories.
+
 ## Alerts and dashboards
 
 Alert on downstream goodput and overload, not local rejection alone. Useful

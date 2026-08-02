@@ -101,3 +101,74 @@ func FuzzBucketIndexBounded(f *testing.F) {
 		}
 	})
 }
+
+func FuzzPolicyConfigurationRemainsBounded(f *testing.F) {
+	f.Add(int64(time.Second), int16(4), uint64(10), math.Float64bits(2), math.Float64bits(0.9), math.Float64bits(0.1), int32(4))
+	f.Add(int64(math.MaxInt64), int16(-1), uint64(math.MaxUint64), math.Float64bits(math.NaN()), math.Float64bits(math.Inf(1)), math.Float64bits(-1), int32(math.MaxInt32))
+	f.Fuzz(func(t *testing.T, duration int64, bucketCount int16, minimumSamples, multiplierBits, maximumBits, admissionBits uint64, maxResources int32) {
+		policy, err := NewPolicy(PolicyConfig{
+			Revision:                    "configuration-fuzz-v1",
+			Window:                      WindowConfig{BucketDuration: time.Duration(duration), BucketCount: int(bucketCount)},
+			MinimumSamples:              minimumSamples,
+			Algorithm:                   GoogleSRE{AcceptMultiplier: math.Float64frombits(multiplierBits)},
+			MaxRejectionProbability:     math.Float64frombits(maximumBits),
+			MinimumAdmissionProbability: math.Float64frombits(admissionBits),
+			MaxResources:                int(maxResources),
+			Clock:                       &fuzzClock{now: time.Unix(0, 0)},
+			Random:                      fuzzRandom{value: 0.5},
+		})
+		if err != nil {
+			return
+		}
+		throttler, err := New(policy)
+		if err != nil {
+			t.Fatalf("New(valid policy) error = %v", err)
+		}
+		if err := throttler.Record("bounded", Classification{Outcome: DownstreamOverload}); err != nil {
+			t.Fatalf("Record() error = %v", err)
+		}
+		snapshot, ok := throttler.Snapshot("bounded")
+		if !ok || !finite(snapshot.RejectionProbability) || snapshot.RejectionProbability < 0 || snapshot.RejectionProbability >= 1 {
+			t.Fatalf("Snapshot() = %+v, want finite bounded state", snapshot)
+		}
+	})
+}
+
+func FuzzCounterSaturationMatchesReference(f *testing.F) {
+	f.Add(uint64(0), uint64(0))
+	f.Add(uint64(math.MaxUint64-1), uint64(2))
+	f.Fuzz(func(t *testing.T, left, right uint64) {
+		got := left
+		saturatingAdd(&got, right)
+		want := left + right
+		if want < left {
+			want = math.MaxUint64
+		}
+		if got != want {
+			t.Fatalf("saturatingAdd(%d, %d) = %d, want %d", left, right, got, want)
+		}
+	})
+}
+
+func FuzzClassifierOutcomesFailSafely(f *testing.F) {
+	f.Add(byte(Accepted), byte(ReasonSuccess), false)
+	f.Add(byte(LocalRejection), byte(ReasonLocalPolicy), false)
+	f.Add(byte(255), byte(255), false)
+	f.Add(byte(DownstreamOverload), byte(ReasonExplicitOverload), true)
+	f.Fuzz(func(t *testing.T, outcome, reason byte, panicClassifier bool) {
+		classification := safeClassify(func(Completion) Classification {
+			if panicClassifier {
+				panic("classifier fault")
+			}
+			return Classification{Outcome: Outcome(outcome), Reason: Reason(reason)}
+		}, Completion{})
+		if classification.Outcome > Ignored {
+			t.Fatalf("safeClassify() = %+v, admitted classifier produced unsafe outcome", classification)
+		}
+		if panicClassifier || Outcome(outcome) == LocalRejection || Outcome(outcome) > LocalRejection {
+			if classification.Outcome != Ignored {
+				t.Fatalf("safeClassify() = %+v, want ignored fallback", classification)
+			}
+		}
+	})
+}

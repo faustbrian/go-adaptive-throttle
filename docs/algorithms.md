@@ -83,8 +83,15 @@ accept the documented cold-start reset.
 
 ## Algorithm choice
 
-Only the Google SRE requests-versus-accepts algorithm is implemented. A
-failure-rate-threshold algorithm has different inputs and semantics and is not
-silently presented under the Google name. Failsafe-Go currently exposes that
-different threshold model; cross-library numbers are not treated as
-like-for-like evidence.
+Only the Google SRE requests-versus-accepts algorithm is implemented.
+Failsafe-Go v0.9.6 exposes its configuration as a failure-rate threshold, but
+its implementation computes the same equation for an aligned completed history
+when `K = 1 / successRateThreshold`, equivalently
+`failureRateThreshold = 1 - 1/K`. The direct differential campaign covers
+5,292 aligned states with zero probability error.
+
+The policies stop being dynamically equivalent after local rejection:
+`adaptive-throttle` counts the application attempt in `requests`, as the SRE
+model specifies, while Failsafe-Go v0.9.6 does not add rejected acquisitions to
+its execution statistics. Comparative results therefore identify the aligned
+history boundary and do not claim identical feedback behavior.
