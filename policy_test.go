@@ -3,7 +3,7 @@ package throttle_test
 import (
 	"testing"
 
-	throttle "github.com/faustbrian/golib/pkg/adaptive-throttle"
+	throttle "github.com/faustbrian/go-adaptive-throttle"
 )
 
 func TestNewRejectsZeroPolicy(t *testing.T) {

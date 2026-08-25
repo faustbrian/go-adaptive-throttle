@@ -1,4 +1,4 @@
-module github.com/faustbrian/golib/pkg/adaptive-throttle
+module github.com/faustbrian/go-adaptive-throttle
 
 go 1.26.6
 

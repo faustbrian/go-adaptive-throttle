@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	throttle "github.com/faustbrian/golib/pkg/adaptive-throttle"
+	throttle "github.com/faustbrian/go-adaptive-throttle"
 )
 
 func TestHealthyOutageRecoveryAndColdReplicaSimulation(t *testing.T) {

@@ -22,6 +22,7 @@ All notable changes to this module are documented here.
 
 ### Changed
 
+- Publish the module from its standalone `github.com/faustbrian/go-adaptive-throttle` identity while preserving its documented API and behavior.
 - The default classifier now ignores every error; applications must explicitly
   select completed downstream failures or overload evidence. This prevents
   rejections from other local policies from contaminating downstream samples.

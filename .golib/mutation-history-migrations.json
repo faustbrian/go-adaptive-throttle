@@ -1,0 +1,32 @@
+{
+  "schema_version": 3,
+  "reason": "Exact mutation checkpoints retained across history rewrites only when the approved old and replacement package input fingerprints, tool version, and report digest match.",
+  "verifier_migration_review": {
+    "gremlins_verifier_sha256": "9a9499ff68a8dfd49a0be7995590297a8ee563a1aa226bfd8b9361dc53058108",
+    "reason": "Each listed checkpoint was executed with the complete current Gremlins semantic patch set introduced by ac300cf3; the four omitted checkpoints require fresh campaigns.",
+    "reviewed_at": "2026-08-20"
+  },
+  "verifier_migrations": [
+    {
+      "execution_revision": "c09c5268b1facb88317f933913b2e7cf4377948b",
+      "gate_input_digest": "af504cd2699cdf36d10bbde9b424d3e488bde10bed4f12be9cb945a6d5d45ae7",
+      "gremlins_verifier_sha256": "9a9499ff68a8dfd49a0be7995590297a8ee563a1aa226bfd8b9361dc53058108",
+      "gremlins_version": "v0.6.0",
+      "module": ".",
+      "package": ".",
+      "report_sha256": "959e7c6c29a18e54a04df5b8c69a2135b4029c038c742cf4e13c0acef4c6961c"
+    }
+  ],
+  "entries": [
+    {
+      "module": ".",
+      "package": ".",
+      "execution_revision": "c09c5268b1facb88317f933913b2e7cf4377948b",
+      "gate_input_digest": "af504cd2699cdf36d10bbde9b424d3e488bde10bed4f12be9cb945a6d5d45ae7",
+      "replacement_gate_input_digest": "2d9eb3bc6c163143cfa0a0920319d982bce6236e2649173645aba545035f9f93",
+      "gremlins_version": "v0.6.0",
+      "gremlins_verifier_sha256": "9a9499ff68a8dfd49a0be7995590297a8ee563a1aa226bfd8b9361dc53058108",
+      "report_sha256": "959e7c6c29a18e54a04df5b8c69a2135b4029c038c742cf4e13c0acef4c6961c"
+    }
+  ]
+}

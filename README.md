@@ -1,5 +1,15 @@
 # adaptive-throttle
 
+[![CI](https://github.com/faustbrian/go-adaptive-throttle/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/faustbrian/go-adaptive-throttle/actions/workflows/ci.yml)
+[![CodeQL](https://img.shields.io/badge/CodeQL-required-blue)](https://github.com/faustbrian/go-adaptive-throttle/actions/workflows/ci.yml)
+[![Coverage](https://img.shields.io/badge/coverage-100%25_required-blue)](CONTRIBUTING.md#verification)
+[![Mutation](https://img.shields.io/badge/mutation-100%25_required-blue)](CONTRIBUTING.md#verification)
+[![Documentation](https://img.shields.io/badge/docs-checked_in_CI-blue)](docs/)
+[![Go Reference](https://pkg.go.dev/badge/github.com/faustbrian/go-adaptive-throttle.svg)](https://pkg.go.dev/github.com/faustbrian/go-adaptive-throttle)
+[![Release](https://img.shields.io/github/v/release/faustbrian/go-adaptive-throttle?sort=semver)](https://github.com/faustbrian/go-adaptive-throttle/releases)
+[![Go](https://img.shields.io/badge/go-1.26.6-00ADD8?logo=go)](https://go.dev/)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 `adaptive-throttle` is a process-local probabilistic load shedder for Go. It
 uses recent downstream admission signals to reject a bounded share of new work
 before network execution while always preserving probabilistic probe flow.

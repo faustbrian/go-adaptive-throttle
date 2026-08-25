@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/failsafe-go/failsafe-go/adaptivethrottler"
-	throttle "github.com/faustbrian/golib/pkg/adaptive-throttle"
+	throttle "github.com/faustbrian/go-adaptive-throttle"
 )
 
 func TestEquivalentFailsafeGoPolicyMatchesGoogleSREProbabilityGrid(t *testing.T) {
