@@ -22,14 +22,14 @@
         }
       ],
       "purpose": "`adaptive-throttle` is a process-local probabilistic load shedder for Go. It uses recent downstream admission signals to reject a bounded share of new work before network execution while always preserving probabilistic probe flow.",
-      "lifecycle": "pre-v1",
+      "lifecycle": "stable",
       "kind": "public library",
       "releasable": true,
       "family": "resilience",
       "family_label": "Resilience",
       "family_description": "Explicit admission, isolation, retry, amplification, and failure policies.",
       "family_order": 5,
-      "version": "unreleased",
+      "version": "v1.0.0",
       "tag_prefix": "v",
       "owned_dependencies": [],
       "reverse_owned_dependencies": [

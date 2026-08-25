@@ -4,6 +4,8 @@ All notable changes to this module are documented here.
 
 ## Unreleased
 
+## 1.0.0 - 2026-08-25
+
 ### Documentation
 
 - Link the package README to the repository-wide Golib documentation portal.
