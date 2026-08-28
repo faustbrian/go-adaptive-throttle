@@ -1,0 +1,89 @@
+schema_version: 1
+tool_version: v1.0.2
+tool_checksums_sha256: f0d8a5b415175fc1ba4bead8034e359764caddadfbcdb908946ced69b02003d5
+manifest:
+  modules: modules.json
+  packages: packages.json
+evidence:
+  root: ".verification"
+mutation:
+  root: ".verification/mutation"
+  imports:
+  - module: "."
+    archive: ".verification/mutation/bootstrap/root.zip"
+    ledger: ".verification/mutation/migration-ledger.json"
+api:
+  baselines:
+  - module: "."
+    mode: apidiff
+    path: api/baseline.txt
+operations:
+- module: "."
+  gate: docs
+  steps:
+  - type: make
+    makefile: verification/package.mk
+    target: docs
+    timeout: 20m
+- module: "."
+  gate: test
+  steps:
+  - type: go-test
+    packages:
+    - "."
+    run: '^(TestConcurrentAdmissionRecordSnapshotResetAndEviction|TestFixedSeedStatisticalRejectionMatchesJustifiedConfidenceBound|TestRollingWindowMatchesDeterministicReferenceModelAtEveryTransition)$'
+    count: 25
+    timeout: 20m
+  - type: go-test
+    packages:
+    - "."
+    run: '^(TestProbabilityCapPreservesProbeFlowAndRandomAnomaliesAdmit|TestClassifierAndPriorityPanicsFailSafely|TestBackwardClockJumpResetsHistoryEvenWithinBucket|TestDefaultClassifierExcludesUnknownPolicyRejectionFromDownstreamHistory)$'
+    count: 10
+    timeout: 20m
+  - type: go-test
+    packages:
+    - "."
+    run: '^TestConcurrentAdmissionRecordSnapshotResetAndEviction$'
+    count: 10
+    timeout: 20m
+- module: "."
+  gate: fuzz
+  steps:
+  - type: go-test
+    packages: ["."]
+    fuzz: '^FuzzGoogleSREProbabilityFiniteAndBounded$'
+    budget: 100x
+    timeout: 2m
+  - type: go-test
+    packages: ["."]
+    fuzz: '^FuzzBucketIndexBounded$'
+    budget: 100x
+    timeout: 2m
+  - type: go-test
+    packages: ["."]
+    fuzz: '^FuzzBoundedEventSequences$'
+    budget: 100x
+    timeout: 2m
+  - type: go-test
+    packages: ["."]
+    fuzz: '^FuzzPolicyConfigurationRemainsBounded$'
+    budget: 100x
+    timeout: 2m
+  - type: go-test
+    packages: ["."]
+    fuzz: '^FuzzCounterSaturationMatchesReference$'
+    budget: 100x
+    timeout: 2m
+  - type: go-test
+    packages: ["."]
+    fuzz: '^FuzzClassifierOutcomesFailSafely$'
+    budget: 100x
+    timeout: 2m
+- module: "."
+  gate: benchmark
+  steps:
+  - type: go-test
+    packages: ["./..."]
+    benchmark: "."
+    budget: 100ms
+    timeout: 20m
