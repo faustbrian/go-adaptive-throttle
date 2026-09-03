@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "repository": "github.com/faustbrian/go-adaptive-throttle",
   "go_version": "1.26.6",
   "modules": [
@@ -50,6 +50,77 @@
       "goal_files": [],
       "goal_status": "not-applicable",
       "goal_evidence": [],
+      "cohesion": {
+        "family": "resilience",
+        "secondary_capabilities": [
+          "resilience-and-admission",
+          "testing-and-conformance"
+        ],
+        "responsibility": "Provide process-local rolling overload history and probabilistic admission that sheds a bounded share of work while preserving probe flow.",
+        "non_goals": [
+          "Provide circuit breaking, fixed rate limiting, concurrency limiting, retries, bulkheads, authorization quotas, autoscaling, or distributed coordination.",
+          "Infer downstream overload from unrelated local policy failures."
+        ],
+        "public_package_identifier": "throttle",
+        "primary_entry_packages": [
+          "github.com/faustbrian/go-adaptive-throttle"
+        ],
+        "package_selection": {
+          "github.com/faustbrian/go-adaptive-throttle": "Use for bounded process-local probabilistic admission based on recent downstream outcomes."
+        },
+        "lifecycle_status": "active",
+        "maturity": "stable",
+        "construction_styles": [
+          "new-config",
+          "plain-function",
+          "validated-value"
+        ],
+        "lifecycle_styles": [
+          "stateless"
+        ],
+        "ownership": {
+          "configuration": "caller",
+          "mutable_inputs": [
+            "borrow",
+            "copy"
+          ],
+          "runtime_resources": "none",
+          "background_work": "none"
+        },
+        "optional_owned_dependencies": [],
+        "adapters": [],
+        "companions": [],
+        "supported_go": {
+          "minimum": "1.26.6",
+          "tested": [
+            "1.26.6"
+          ]
+        },
+        "supported_platforms": [
+          "portable-go"
+        ],
+        "supported_backends": [],
+        "supported_protocols": [],
+        "documentation": {
+          "readme": "README.md",
+          "api": "docs/api.md",
+          "adoption": "docs/composition.md",
+          "security": "docs/operations.md",
+          "compatibility": "COMPATIBILITY.md",
+          "performance": "docs/benchmarks.md",
+          "examples": "example_test.go",
+          "faq": "docs/faq.md",
+          "changelog": "CHANGELOG.md",
+          "pkg_go_dev": "https://pkg.go.dev/github.com/faustbrian/go-adaptive-throttle",
+          "ecosystem_index": "https://github.com/faustbrian/go-library-tools/blob/v1.3.0/docs/ecosystem/README.md"
+        },
+        "known_good_compatibility_sets": [],
+        "delivery": {
+          "implementation": "not-started",
+          "hardening": "not-started",
+          "release": "not-started"
+        }
+      },
       "gates": {
         "api_compatibility": true,
         "benchmarks": true,
