@@ -6,10 +6,21 @@ All notable changes to this module are documented here.
 
 ### Changed
 
+- Adopt the checksum-verified `go-library-tools` v1.3.0 CLI, declare complete
+  schema-v2 cohesion metadata for the public module, and expose repository-local
+  cohesion and workflow validation targets.
+
+- Pin the `go-library-tools` v1.3.0 reusable workflow so CI enforces the
+  repository, workflow, and cohesion contracts while retaining package-owned
+  policy and verification evidence.
+
 - Replace copied repository tooling with the pinned `go-library-tools` v1.0.13
   contract while retaining package-owned policy and verification evidence.
 
 ### Documentation
+
+- Link the public module to the versioned Golib ecosystem design language and
+  publish package-selection guidance through the cohesion catalog metadata.
 
 - Replace the archived monorepo link with package-owned documentation.
 

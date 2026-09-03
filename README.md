@@ -73,6 +73,9 @@ downstream samples.
 - [Benchmarks and comparison policy](docs/benchmarks.md)
 - [FAQ](docs/faq.md)
 
+Shared construction, ownership, lifecycle, and composition expectations follow
+the versioned [Golib ecosystem design language](https://github.com/faustbrian/go-library-tools/blob/v1.3.0/docs/ecosystem/README.md).
+
 ## Verification
 
 ```sh
