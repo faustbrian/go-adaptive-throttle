@@ -14,6 +14,14 @@ All notable changes to this module are documented here.
   repository, workflow, and cohesion contracts while retaining package-owned
   policy and verification evidence.
 
+- Advance to the checksum-verified `go-library-tools` v1.4.0 CLI and make
+  local CI enforce online specification authority validation.
+
+- Pin the immutable `go-library-tools` v1.4.0 workflow so CI enforces cohesion
+  and specification contracts and resolves published modules from the public
+  Go proxy before the immutable bootstrap fallback, preventing fallback bytes
+  from shadowing public releases.
+
 - Replace copied repository tooling with the pinned `go-library-tools` v1.0.13
   contract while retaining package-owned policy and verification evidence.
 
@@ -21,6 +29,9 @@ All notable changes to this module are documented here.
 
 - Link the public module to the versioned Golib ecosystem design language and
   publish package-selection guidance through the cohesion catalog metadata.
+
+- Advance the public module links to the versioned v1.4.0 Golib ecosystem
+  index and resilience family guidance.
 
 - Replace the archived monorepo link with package-owned documentation.
 
