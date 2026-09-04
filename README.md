@@ -74,16 +74,20 @@ downstream samples.
 - [FAQ](docs/faq.md)
 
 Shared construction, ownership, lifecycle, and composition expectations follow
-the versioned [Golib ecosystem design language](https://github.com/faustbrian/go-library-tools/blob/v1.3.0/docs/ecosystem/README.md).
+the versioned [Golib ecosystem index](https://github.com/faustbrian/go-library-tools/blob/v1.4.0/docs/ecosystem/README.md)
+and its [Resilience family](https://github.com/faustbrian/go-library-tools/blob/v1.4.0/docs/ecosystem/design-language.md#package-families-and-selection).
 
 ## Verification
 
 ```sh
-make check
+make ci
 ```
 
-The repository gate runs exact coverage, race, fuzz, mutation, API,
-documentation, vulnerability, license, SBOM, and clean-consumer checks.
+The complete repository gate validates configuration, inventory, cohesion,
+repository and workflow contracts, online specification authorities, exact
+coverage, race, fuzz, mutation, API, documentation, vulnerability, license,
+SBOM, and clean-consumer checks. Use `make check` for the implementation gates
+alone.
 
 ## References
 
