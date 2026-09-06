@@ -17,6 +17,14 @@ before network execution while always preserving probabilistic probe flow.
 It is not a circuit breaker, fixed rate limiter, concurrency limiter, retry
 budget, bulkhead, authorization quota, autoscaler, or distributed coordinator.
 
+The module is a stable v1 public library. It requires Go 1.26.6 or newer.
+
+## Install
+
+```sh
+go get github.com/faustbrian/go-adaptive-throttle@v1
+```
+
 ## Quick start
 
 ```go
@@ -63,8 +71,17 @@ downstream samples.
 - Injected clocks, randomness, classifiers, priority resolvers, and observers
   make decisions reproducible without global state.
 
+## Lifecycle and ownership
+
+A `Throttler` owns only bounded in-memory state. It starts no goroutines,
+performs no network I/O, and owns no external resources, so it requires no
+shutdown or close operation. A `Throttler` is safe for concurrent use. Callers
+own operation contexts and downstream work; injected clocks, randomness,
+classifiers, priority resolvers, and observers must support concurrent calls.
+
 ## Documentation
 
+- [Documentation index](docs/README.md)
 - [Algorithms and numerical behavior](docs/algorithms.md)
 - [API, classification, priority, and migration](docs/api.md)
 - [Composition](docs/composition.md)
@@ -72,6 +89,10 @@ downstream samples.
 - [Operations, tuning, simulation, and security](docs/operations.md)
 - [Benchmarks and comparison policy](docs/benchmarks.md)
 - [FAQ](docs/faq.md)
+- [Support](SUPPORT.md)
+- [Security policy and reporting guidance](SECURITY.md)
+- [Compatibility policy](COMPATIBILITY.md)
+- [Release history](CHANGELOG.md)
 
 Shared construction, ownership, lifecycle, and composition expectations follow
 the versioned [Golib ecosystem index](https://github.com/faustbrian/go-library-tools/blob/v1.4.0/docs/ecosystem/README.md)
