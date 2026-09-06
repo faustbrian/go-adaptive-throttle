@@ -15,9 +15,7 @@ regression under active development.
 ## Reporting a vulnerability
 
 Do not disclose a suspected vulnerability in a public issue. Use the
-repository's private security reporting facility when available. If private
-reporting is unavailable, ask a maintainer for a private contact channel
-without disclosing the vulnerability.
+[private vulnerability reporting form](https://github.com/faustbrian/go-adaptive-throttle/security/advisories/new).
 
 Do not include credentials, customer data, tenant identifiers, URLs, or raw
 production errors in a public report or initial contact request.

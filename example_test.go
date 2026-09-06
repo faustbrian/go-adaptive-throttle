@@ -57,7 +57,9 @@ func ExampleThrottler_TryAcquire() {
 	if err != nil {
 		panic(err)
 	}
-	_ = permit.Record(throttle.Classification{Outcome: throttle.Accepted, Reason: throttle.ReasonSuccess})
+	if err := permit.Record(throttle.Classification{Outcome: throttle.Accepted, Reason: throttle.ReasonSuccess}); err != nil {
+		panic(err)
+	}
 	fmt.Println("recorded")
 	// Output: recorded
 }

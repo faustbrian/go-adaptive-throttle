@@ -3,6 +3,7 @@
 ## Getting started
 
 - [Install and quick start](../README.md#install)
+- [Public package map](../README.md#package-map)
 - [API](api.md)
 - [Composition](composition.md)
 - [Executable examples](../example_test.go)
@@ -16,6 +17,7 @@
 
 - [Kubernetes](kubernetes.md)
 - [Operations](operations.md)
+- [Rejection and overload troubleshooting](operations.md#failure-handling)
 - [Benchmarks](benchmarks.md)
 - [Security policy and reporting guidance](../SECURITY.md)
 - [Support](../SUPPORT.md)
