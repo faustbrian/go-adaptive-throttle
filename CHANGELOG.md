@@ -27,6 +27,11 @@ All notable changes to this module are documented here.
 
 ### Documentation
 
+- Add the public package map and actionable overload troubleshooting, enforce
+  package-owned documentation checks, handle the Permit recording error in the
+  executable example, clarify tag conventions, route vulnerability reports,
+  and correct the v1.0.0 release date.
+
 - Add canonical v1 installation, stable Go support, lifecycle and ownership,
   project support, and security-reporting guidance.
 
@@ -38,7 +43,7 @@ All notable changes to this module are documented here.
 
 - Replace the archived monorepo link with package-owned documentation.
 
-## 1.0.0 - 2026-08-25
+## 1.0.0 - 2026-08-26
 
 ### Changed
 

@@ -79,6 +79,12 @@ shutdown or close operation. A `Throttler` is safe for concurrent use. Callers
 own operation contexts and downstream work; injected clocks, randomness,
 classifiers, priority resolvers, and observers must support concurrent calls.
 
+## Package map
+
+| Import path | Package | Role | Release status |
+| --- | --- | --- | --- |
+| `github.com/faustbrian/go-adaptive-throttle` | `throttle` | Process-local adaptive admission | Stable v1 root module |
+
 ## Documentation
 
 - [Documentation index](docs/README.md)
@@ -87,6 +93,7 @@ classifiers, priority resolvers, and observers must support concurrent calls.
 - [Composition](docs/composition.md)
 - [Kubernetes and fleet behavior](docs/kubernetes.md)
 - [Operations, tuning, simulation, and security](docs/operations.md)
+- [Rejection and overload troubleshooting](docs/operations.md#failure-handling)
 - [Benchmarks and comparison policy](docs/benchmarks.md)
 - [FAQ](docs/faq.md)
 - [Support](SUPPORT.md)

@@ -29,6 +29,14 @@ It started with an empty local window. Plan cold-start aggregate admission at
 the maximum replica count and use readiness or application-owned ramping when
 needed.
 
+## Why are rejection or overload signals rising?
+
+Follow the [failure-handling checklist](operations.md#failure-handling). Compare
+offered work, admitted work, downstream goodput, explicit overloads, local
+rejections, probability, policy revision, and per-pod traffic before changing
+the window or probability bounds. Confirm that only proven downstream outcomes
+are classified as overload evidence.
+
 ## Can critical traffic bypass every control?
 
 No. Priority only scales adaptive rejection. Hard bulkhead, rate, authorization,
