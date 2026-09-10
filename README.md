@@ -7,7 +7,7 @@
 [![Documentation](https://img.shields.io/badge/docs-checked_in_CI-blue)](docs/)
 [![Go Reference](https://pkg.go.dev/badge/github.com/faustbrian/go-adaptive-throttle.svg)](https://pkg.go.dev/github.com/faustbrian/go-adaptive-throttle)
 [![Release](https://img.shields.io/github/v/release/faustbrian/go-adaptive-throttle?sort=semver)](https://github.com/faustbrian/go-adaptive-throttle/releases)
-[![Go](https://img.shields.io/badge/go-1.26.6-00ADD8?logo=go)](https://go.dev/)
+[![Go](https://img.shields.io/badge/go-1.27.0-00ADD8?logo=go)](https://go.dev/)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 `adaptive-throttle` is a process-local probabilistic load shedder for Go. It
@@ -17,7 +17,7 @@ before network execution while always preserving probabilistic probe flow.
 It is not a circuit breaker, fixed rate limiter, concurrency limiter, retry
 budget, bulkhead, authorization quota, autoscaler, or distributed coordinator.
 
-The module is a stable v1 public library. It requires Go 1.26.6 or newer.
+The module is a stable v1 public library. It requires Go 1.27.0 or newer.
 
 ## Install
 
