@@ -172,10 +172,13 @@ func (t *Throttler) TryAcquire(ctx context.Context, resource string) (*Permit, e
 		return nil, err
 	}
 
+	done := ctx.Done()
 	t.mu.Lock()
-	if err := ctx.Err(); err != nil {
+	select {
+	case <-done:
 		t.mu.Unlock()
-		return nil, err
+		return nil, ctx.Err()
+	default:
 	}
 	state := t.resourceLocked(resource, now)
 	b := t.currentBucketLocked(state, now)

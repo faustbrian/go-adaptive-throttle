@@ -20,6 +20,7 @@ eviction, keeping metric-label cardinality bounded.
 `TryAcquire(ctx, resource)` returns a `Permit` or `ErrRejected`. Context
 cancellation is checked before and after injected admission collaborators and
 again after state-lock contention, before resource history can be created.
+Context methods and injected collaborators run outside the state lock.
 Rejected work must not run. Record an admitted result once with
 `Permit.Record`.
 
