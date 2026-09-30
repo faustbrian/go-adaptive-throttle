@@ -18,8 +18,10 @@ eviction, keeping metric-label cardinality bounded.
 ## Admission and recording
 
 `TryAcquire(ctx, resource)` returns a `Permit` or `ErrRejected`. Context
-cancellation is checked before resource state is created. Rejected work must
-not run. Record an admitted result once with `Permit.Record`.
+cancellation is checked before and after injected admission collaborators and
+again after state-lock contention, before resource history can be created.
+Rejected work must not run. Record an admitted result once with
+`Permit.Record`.
 
 `Record(resource, classification)` is for integrations that already control
 admission and completion. It represents one complete result. Recording

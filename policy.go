@@ -7,6 +7,7 @@ import (
 	"math"
 	rand "math/rand/v2"
 	"reflect"
+	"strings"
 	"time"
 )
 
@@ -33,6 +34,8 @@ const (
 )
 
 // Clock supplies timestamps for rolling-window expiration.
+// A panic falls back to current wall-clock time; normal window and admission
+// rules still apply. Implementations must be bounded and concurrency-safe.
 type Clock interface {
 	Now() time.Time
 }
@@ -218,7 +221,7 @@ func NewPolicy(config PolicyConfig) (Policy, error) {
 	}
 
 	return Policy{config: policyConfig{
-		revision:       config.Revision,
+		revision:       strings.Clone(config.Revision),
 		bucketDuration: window.BucketDuration,
 		bucketCount:    window.BucketCount,
 		minimumSamples: minimumSamples,

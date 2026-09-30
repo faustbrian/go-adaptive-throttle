@@ -16,6 +16,10 @@ type anomalousRandom struct {
 	panic bool
 }
 
+type panickingClock struct{}
+
+func (panickingClock) Now() time.Time { panic("clock failure") }
+
 func (r anomalousRandom) Float64() float64 {
 	if r.panic {
 		panic("random failure")
@@ -74,6 +78,48 @@ func TestProbabilityCapPreservesProbeFlowAndRandomAnomaliesAdmit(t *testing.T) {
 				t.Fatalf("TryAcquire() = (%v, %v), random anomaly must fail open", permit, err)
 			}
 		})
+	}
+}
+
+func TestPanickingClockIsContainedAcrossStateOperations(t *testing.T) {
+	t.Parallel()
+
+	policy, err := throttle.NewPolicy(throttle.PolicyConfig{
+		Revision:                    "clock-failure-v1",
+		Window:                      throttle.WindowConfig{BucketDuration: time.Second, BucketCount: 2},
+		MinimumSamples:              1,
+		Algorithm:                   throttle.GoogleSRE{AcceptMultiplier: 1},
+		MaxRejectionProbability:     0.9,
+		MinimumAdmissionProbability: 0.1,
+		MaxResources:                1,
+		Clock:                       panickingClock{},
+		Random:                      fixedRandom{value: 0.99},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	throttler, err := throttle.New(policy)
+	if err != nil {
+		t.Fatal(err)
+	}
+	permit, err := throttler.TryAcquire(context.Background(), "inventory")
+	if err != nil || permit == nil {
+		t.Fatalf("TryAcquire() = (%v, %v), want admission with empty history", permit, err)
+	}
+	if err := permit.Record(throttle.Classification{Outcome: throttle.Accepted}); err != nil {
+		t.Fatal(err)
+	}
+	if snapshot, ok := throttler.Snapshot("inventory"); !ok || snapshot.Accepts != 1 {
+		t.Fatalf("Snapshot() = (%+v, %t), want recorded acceptance", snapshot, ok)
+	}
+	if err := throttler.Record("inventory", throttle.Classification{Outcome: throttle.Accepted}); err != nil {
+		t.Fatal(err)
+	}
+	if snapshots := throttler.Snapshots(); len(snapshots) != 1 || snapshots[0].Accepts != 2 {
+		t.Fatalf("Snapshots() = %+v, want both recorded acceptances", snapshots)
+	}
+	if !throttler.Reset("inventory") {
+		t.Fatal("Reset() = false, want true")
 	}
 }
 
