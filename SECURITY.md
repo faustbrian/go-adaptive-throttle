@@ -20,6 +20,10 @@ Do not disclose a suspected vulnerability in a public issue. Use the
 Do not include credentials, customer data, tenant identifiers, URLs, or raw
 production errors in a public report or initial contact request.
 
-Priority resolvers, overload classifiers, resource identities, policy
-revisions, and observers are application trust boundaries; review them before
-deployment.
+Injected clocks, random sources, priority resolvers, overload classifiers,
+resource identities, policy revisions, and observers are application trust
+boundaries; review them before deployment.
+
+The [threat model and accepted residual-risk dispositions](docs/operations.md#threat-model-and-accepted-residual-risks)
+identify the owner, rationale, mitigation, and review condition for each
+remaining risk.
