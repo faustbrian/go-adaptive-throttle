@@ -3,8 +3,10 @@
 ## Reproducibility
 
 Published results below were collected on 2026-08-02 with Go 1.26.5,
-darwin/arm64, Apple M4 Max, and `GOMAXPROCS=16`. Failsafe-Go is pinned at
-v0.9.6. The comparison uses one resource, a two-minute window, 10 minimum
+darwin/arm64, Apple M4 Max, and `GOMAXPROCS=16`, using Failsafe-Go v0.9.6.
+The current comparison and benchmark dependency is v0.9.7; these historical
+measurements have not been rerun for that version. The comparison uses one
+resource, a two-minute window, 10 minimum
 samples, `K=2`, a 50% Failsafe-Go failure threshold, a 0.9 maximum, and the
 same success-only healthy classifier. Each operation acquires and records one
 success.
@@ -49,14 +51,16 @@ the single policy lock as the contention owner in both implementations.
 ## Probability and policy comparison
 
 `TestEquivalentFailsafeGoPolicyMatchesGoogleSREProbabilityGrid` directly runs
-Failsafe-Go v0.9.6 and adaptive-throttle across 5,292 aligned states:
+the currently pinned Failsafe-Go v0.9.7 and adaptive-throttle across 5,292
+aligned states:
 
 - `K` values 1, 1.25, 2, and 4;
 - minimum samples 1, 5, and 20;
 - every combination of 0-20 accepts and 0-20 overloads; and
 - equal one-minute, 20-bucket windows and a 0.99 maximum.
 
-The maximum absolute probability error was exactly zero. A separate direct
+The original v0.9.6 run had a maximum absolute probability error of zero.
+A separate direct
 traffic-phase simulation compared 240 consecutive healthy, partial-failure,
 sudden-outage, and recovery states and also had zero error, with a peak
 probability of 0.283688. This proves the algebraic mapping for aligned completed

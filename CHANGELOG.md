@@ -4,6 +4,15 @@ All notable changes to this module are documented here.
 
 ## Unreleased
 
+## 1.0.2 - 2026-10-02
+
+### Changed
+
+- Update the comparison and benchmark dependency to Failsafe-Go v0.9.7;
+  historical performance measurements remain tied to v0.9.6.
+- Advance the pinned reusable CI workflow while preserving the independently
+  pinned repository tooling.
+
 ## 1.0.1 - 2026-09-30
 
 ### Security
