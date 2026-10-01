@@ -8,6 +8,7 @@ import (
 	"math"
 	"math/bits"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 )
@@ -97,6 +98,7 @@ type bucket struct {
 }
 
 type resourceState struct {
+	resource string
 	buckets  []bucket
 	lastTick int64
 	lastTime time.Time
@@ -134,7 +136,7 @@ func (t *Throttler) Record(resource string, classification Classification) error
 	if !validOutcome(classification.Outcome) {
 		return invalid("Classification.Outcome", "is unsupported")
 	}
-	now := t.policy.clock.Now()
+	now := safeNow(t.policy.clock)
 	t.mu.Lock()
 	state := t.resourceLocked(resource, now)
 	b := t.currentBucketLocked(state, now)
@@ -157,11 +159,27 @@ func (t *Throttler) TryAcquire(ctx context.Context, resource string) (*Permit, e
 	if err := validateResource(resource); err != nil {
 		return nil, err
 	}
-	now := t.policy.clock.Now()
+	now := safeNow(t.policy.clock)
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	sample := safeRandom(t.policy.random)
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	priority := safePriority(t.policy.priority, ctx, len(t.policy.priorityScale))
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 
+	done := ctx.Done()
 	t.mu.Lock()
+	select {
+	case <-done:
+		t.mu.Unlock()
+		return nil, ctx.Err()
+	default:
+	}
 	state := t.resourceLocked(resource, now)
 	b := t.currentBucketLocked(state, now)
 	current := aggregate(state, t.policy, now)
@@ -184,7 +202,7 @@ func (t *Throttler) TryAcquire(ctx context.Context, resource string) (*Permit, e
 		decision = DecisionDryRunAdmit
 	}
 	snapshot := aggregate(state, t.policy, now)
-	permit := &Permit{owner: t, resource: resource, state: state}
+	permit := &Permit{owner: t, resource: state.resource, state: state}
 	t.mu.Unlock()
 	t.observe(Event{Decision: decision, Probability: probability, Priority: uint8(priority), ResourceSlot: state.slot, Snapshot: snapshot})
 	return permit, nil
@@ -243,7 +261,7 @@ func (p *Permit) record(classification Classification) bool {
 	p.mu.Unlock()
 
 	t := p.owner
-	now := t.policy.clock.Now()
+	now := safeNow(t.policy.clock)
 	t.mu.Lock()
 	state, ok := t.resources[p.resource]
 	if ok && state == p.state {
@@ -263,7 +281,7 @@ func (t *Throttler) Snapshot(resource string) (Snapshot, bool) {
 	if validateResource(resource) != nil {
 		return Snapshot{}, false
 	}
-	now := t.policy.clock.Now()
+	now := safeNow(t.policy.clock)
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	state, ok := t.resources[resource]
@@ -277,7 +295,7 @@ func (t *Throttler) Snapshot(resource string) (Snapshot, bool) {
 // Snapshots returns at most MaxResources immutable snapshots ordered by their
 // stable process-local slot. Arbitrary resource identities are not exposed.
 func (t *Throttler) Snapshots() []Snapshot {
-	now := t.policy.clock.Now()
+	now := safeNow(t.policy.clock)
 	t.mu.Lock()
 	snapshots := make([]Snapshot, 0, len(t.resources))
 	for _, state := range t.resources {
@@ -296,7 +314,7 @@ func (t *Throttler) Reset(resource string) bool {
 	if validateResource(resource) != nil {
 		return false
 	}
-	now := t.policy.clock.Now()
+	now := safeNow(t.policy.clock)
 	t.mu.Lock()
 	state, ok := t.resources[resource]
 	if !ok {
@@ -346,7 +364,9 @@ func (t *Throttler) resourceLocked(resource string, now time.Time) *resourceStat
 	slot := t.availableSlotLocked()
 	t.slots[slot] = true
 	tick := windowTick(now, t.policy.bucketDuration)
+	ownedResource := strings.Clone(resource)
 	state := &resourceState{
+		resource: ownedResource,
 		buckets:  make([]bucket, t.policy.bucketCount),
 		lastTick: tick,
 		lastTime: now,
@@ -354,7 +374,7 @@ func (t *Throttler) resourceLocked(resource string, now time.Time) *resourceStat
 		slot:     slot,
 	}
 	state.buckets[bucketIndex(tick, t.policy.bucketCount)].tick = tick
-	t.resources[resource] = state
+	t.resources[ownedResource] = state
 	return state
 }
 
@@ -500,6 +520,16 @@ func safeRandom(random Random) (sample float64) {
 		return value
 	}
 	return 1
+}
+
+func safeNow(clock Clock) (now time.Time) {
+	defer func() {
+		if recover() != nil {
+			now = time.Now()
+		}
+	}()
+
+	return clock.Now()
 }
 
 func safeClassify(classifier Classifier, completion Completion) (classification Classification) {

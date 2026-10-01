@@ -4,6 +4,19 @@ All notable changes to this module are documented here.
 
 ## Unreleased
 
+## 1.0.1 - 2026-09-30
+
+### Security
+
+- Copy bounded policy revisions and retained resource keys so short caller
+  substrings cannot pin oversized backing buffers in process memory.
+- Recheck cancellation after injected admission collaborators and state-lock
+  contention, rejecting observed cancellation before creating history.
+- Contain injected-clock panics using wall-clock time; normal window expiry
+  and admission rules still apply.
+- Document the security threat model and disposition of remaining synchronous
+  collaborator, error-traversal, and resource-churn risks.
+
 ### Changed
 
 - Adopt the checksum-verified `go-library-tools` v1.3.0 CLI, declare complete
