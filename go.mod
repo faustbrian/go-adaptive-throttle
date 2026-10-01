@@ -3,7 +3,7 @@ module github.com/faustbrian/go-adaptive-throttle
 go 1.27.0
 
 require (
-	github.com/failsafe-go/failsafe-go v0.9.6
+	github.com/failsafe-go/failsafe-go v0.9.7
 	go.uber.org/goleak v1.3.0
 )
 
