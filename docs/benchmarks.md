@@ -4,7 +4,7 @@
 
 Published results below were collected on 2026-08-02 with Go 1.26.5,
 darwin/arm64, Apple M4 Max, and `GOMAXPROCS=16`, using Failsafe-Go v0.9.6.
-The current comparison and benchmark dependency is v0.9.7; these historical
+The current comparison and benchmark dependency is v0.9.8; these historical
 measurements have not been rerun for that version. The comparison uses one
 resource, a two-minute window, 10 minimum
 samples, `K=2`, a 50% Failsafe-Go failure threshold, a 0.9 maximum, and the
@@ -51,7 +51,7 @@ the single policy lock as the contention owner in both implementations.
 ## Probability and policy comparison
 
 `TestEquivalentFailsafeGoPolicyMatchesGoogleSREProbabilityGrid` directly runs
-the currently pinned Failsafe-Go v0.9.7 and adaptive-throttle across 5,292
+the currently pinned Failsafe-Go v0.9.8 and adaptive-throttle across 5,292
 aligned states:
 
 - `K` values 1, 1.25, 2, and 4;
