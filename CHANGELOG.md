@@ -4,6 +4,8 @@ All notable changes to this module are documented here.
 
 ## Unreleased
 
+## 1.0.3 - 2026-10-06
+
 ### Changed
 
 - Update the comparison and benchmark dependency to Failsafe-Go v0.9.8;
