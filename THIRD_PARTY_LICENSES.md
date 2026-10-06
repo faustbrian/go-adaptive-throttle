@@ -3,7 +3,7 @@
 The production package uses only the Go standard library. Test and benchmark
 dependencies are:
 
-- `github.com/failsafe-go/failsafe-go` v0.9.6 - MIT License;
+- `github.com/failsafe-go/failsafe-go` v0.9.8 - MIT License;
 - `github.com/bits-and-blooms/bitset` v1.24.4 - MIT License (transitive);
 - `go.uber.org/goleak` v1.3.0 - Apache-2.0 License.
 
