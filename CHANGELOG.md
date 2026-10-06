@@ -4,6 +4,12 @@ All notable changes to this module are documented here.
 
 ## Unreleased
 
+### Changed
+
+- Update the comparison and benchmark dependency to Failsafe-Go v0.9.8;
+  historical performance measurements remain tied to v0.9.6. Production
+  throttle behavior, public APIs, and the Go support floor remain unchanged.
+
 ## 1.0.2 - 2026-10-02
 
 ### Changed
