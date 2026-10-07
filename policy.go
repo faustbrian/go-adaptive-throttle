@@ -299,4 +299,7 @@ func (systemClock) Now() time.Time { return time.Now() }
 
 type systemRandom struct{}
 
-func (systemRandom) Float64() float64 { return rand.Float64() }
+func (systemRandom) Float64() float64 {
+	// #nosec G404 -- Samples govern probabilistic load shedding, not authentication, secret generation, or a hard security quota.
+	return rand.Float64()
+}

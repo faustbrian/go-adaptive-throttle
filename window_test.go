@@ -116,3 +116,52 @@ func TestRollingWindowExpiresBucketsAndReportsBoundedAge(t *testing.T) {
 		t.Fatalf("expired Snapshot() = %+v, want idle reset", expired)
 	}
 }
+
+func TestRollingWindowAcrossEpochReportsExactAgeAndExpires(t *testing.T) {
+	t.Parallel()
+
+	clock := &fixedClock{now: time.Unix(-1, 500_000_000)}
+	policy, err := throttle.NewPolicy(throttle.PolicyConfig{
+		Revision:                    "epoch-window-v1",
+		Window:                      throttle.WindowConfig{BucketDuration: time.Second, BucketCount: 3},
+		MinimumSamples:              1,
+		Algorithm:                   throttle.GoogleSRE{AcceptMultiplier: 1},
+		MaxRejectionProbability:     0.9,
+		MinimumAdmissionProbability: 0.1,
+		MaxResources:                1,
+		Clock:                       clock,
+		Random:                      fixedRandom{value: 0.99},
+	})
+	if err != nil {
+		t.Fatalf("NewPolicy() error = %v", err)
+	}
+	throttler, err := throttle.New(policy)
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	if err := throttler.Record("inventory", throttle.Classification{Outcome: throttle.DownstreamFailure}); err != nil {
+		t.Fatalf("Record() error = %v", err)
+	}
+	for _, step := range []struct {
+		seconds int64
+		age     time.Duration
+		count   uint64
+	}{
+		{seconds: 0, age: time.Second, count: 1},
+		{seconds: 1, age: 2 * time.Second, count: 1},
+		{seconds: 2, age: 0, count: 0},
+	} {
+		clock.now = time.Unix(step.seconds, 0)
+		snapshot, ok := throttler.Snapshot("inventory")
+		if !ok {
+			t.Fatal("Snapshot() lost resource identity")
+		}
+		if snapshot.Requests != step.count || snapshot.Samples != step.count || snapshot.Accepts != step.count || snapshot.Failures != step.count || snapshot.WindowAge != step.age {
+			t.Fatalf("Snapshot() at epoch second %d = %+v, want count %d and age %v", step.seconds, snapshot, step.count, step.age)
+		}
+		snapshots := throttler.Snapshots()
+		if len(snapshots) != 1 || snapshots[0] != snapshot {
+			t.Fatalf("Snapshots() at epoch second %d = %+v, want [%+v]", step.seconds, snapshots, snapshot)
+		}
+	}
+}

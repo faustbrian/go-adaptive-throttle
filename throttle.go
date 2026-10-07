@@ -430,6 +430,7 @@ func aggregate(state *resourceState, policy policyConfig, now time.Time) Snapsho
 		saturatingAdd(&snapshot.LocalRejections, b.localRejections)
 		saturatingAdd(&snapshot.DryRunRejections, b.dryRunRejections)
 		if bucketHasData(b) {
+			// #nosec G115 -- Rotation bounds populated buckets to a nonnegative age below the validated bucket count; unsigned subtraction preserves negative ticks.
 			oldestAge = max(oldestAge, uint64(currentTick)-uint64(b.tick))
 		}
 	}
@@ -592,5 +593,6 @@ func forwardGapAtLeast(previous, current int64, count int) bool {
 	if cmp.Compare(current, previous) != 1 {
 		return false
 	}
+	// #nosec G115 -- Signed ordering makes unsigned subtraction the exact full-domain forward gap; policy validation bounds count to 1..MaxBuckets.
 	return uint64(current)-uint64(previous) >= uint64(count)
 }
