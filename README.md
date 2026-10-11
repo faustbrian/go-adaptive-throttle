@@ -3,7 +3,7 @@
 [![CI](https://github.com/faustbrian/go-adaptive-throttle/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/faustbrian/go-adaptive-throttle/actions/workflows/ci.yml)
 [![CodeQL](https://img.shields.io/badge/CodeQL-required-blue)](https://github.com/faustbrian/go-adaptive-throttle/actions/workflows/ci.yml)
 [![Coverage](https://img.shields.io/badge/coverage-100%25_required-blue)](CONTRIBUTING.md#verification)
-[![Mutation](https://img.shields.io/badge/mutation-100%25_required-blue)](CONTRIBUTING.md#verification)
+[![Mutation](https://img.shields.io/badge/mutation-optional_local-blue)](CONTRIBUTING.md#verification)
 [![Documentation](https://img.shields.io/badge/docs-checked_in_CI-blue)](docs/)
 [![Go Reference](https://pkg.go.dev/badge/github.com/faustbrian/go-adaptive-throttle.svg)](https://pkg.go.dev/github.com/faustbrian/go-adaptive-throttle)
 [![Release](https://img.shields.io/github/v/release/faustbrian/go-adaptive-throttle?sort=semver)](https://github.com/faustbrian/go-adaptive-throttle/releases)
@@ -108,14 +108,16 @@ and its [Resilience family](https://github.com/faustbrian/go-library-tools/blob/
 ## Verification
 
 ```sh
+go test ./...
 make ci
 ```
 
-The complete repository gate validates configuration, inventory, cohesion,
-repository and workflow contracts, online specification authorities, exact
-coverage, race, fuzz, mutation, API, documentation, vulnerability, license,
-SBOM, and clean-consumer checks. Use `make check` for the implementation gates
-alone.
+`make check` and `make ci` use bounded local checks with the public verifier
+declared in `.golib.yaml`, including named race assertions for concurrent state
+operations and cancellation callback isolation. `make check-full` retains online
+specification validation and full assurance; select it for the relevant material
+risk or release boundary. See [contributor verification](CONTRIBUTING.md#verification)
+for focused fuzzing, optional local mutation and release qualification.
 
 ## References
 

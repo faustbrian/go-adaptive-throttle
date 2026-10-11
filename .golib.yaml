@@ -1,6 +1,6 @@
 schema_version: 1
-tool_version: v1.4.0
-tool_checksums_sha256: ba1b71d41dc9b58d5bfb411bc89ae2d45b6f3f778152714bfd1afeab0bef2f33
+tool_version: v2.1.0
+tool_checksums_sha256: 5517b5ec9872ad51546409de37b2932a90f230c673570998f8696416b149e5c6
 manifest:
   modules: modules.json
   packages: packages.json
@@ -18,6 +18,15 @@ api:
     mode: apidiff
     path: api/baseline.txt
 operations:
+- module: "."
+  gate: local-test
+  steps:
+  - type: go-test
+    packages: ["."]
+    run: '^Test(ConcurrentAdmissionRecordSnapshotResetAndEviction|CancellationErrorCallbackDoesNotBlockIndependentStateOperations)$'
+    race: true
+    count: 1
+    timeout: 2m
 - module: "."
   gate: docs
   steps:
