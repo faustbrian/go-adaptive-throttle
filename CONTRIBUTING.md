@@ -29,12 +29,12 @@ the affected stable decision entries, and complete the Specification Decisions
 section of the pull request template. An unresolved interpretation or stale
 source pin is release-blocking; peer behavior cannot silently select policy.
 
-Mutation is optional developer-local or selected scheduled assurance, not a PR
+Mutation is optional developer-local or explicitly selected full assurance, not a PR
 prerequisite. Investigate viable survivors and add focused regressions for real
 defects; moving a campaign off PRs does not waive a confirmed correctness or
 security defect. Equivalent/invalid mutants retain reviewed narrow dispositions.
 
-Do not add package-local workflows, permanent replacements, machine-specific
+Do not fork shared verification workflows, add permanent replacements, machine-specific
 paths, bypass flags, broad mutation exclusions, or aggregate quality metrics
 that hide a failing package.
 
@@ -58,7 +58,7 @@ examples, not unrelated runtime work. Public API, concurrency and lifecycle
 changes retain their affected compatibility, race and composition checks.
 
 For active exploration, select one fuzz target and a small budget; long campaigns
-belong in scheduled assurance. Optional local mutation selects one package with
+remain explicit full assurance. Optional local mutation selects one package with
 the qualified verifier. These examples are not all-change requirements:
 
 ```bash
@@ -72,6 +72,28 @@ Relevant release qualification uses `golib release dry-run --module .`. Select
 these for their material risk or release boundary, not every commit. Report
 unavailable or failed checks honestly; a fast local pass is not public-release
 or hosted-CI qualification. CI-only changes do not require a module release.
+
+## Selected Monthly Assurance
+
+The owner-level [selected-assurance caller](.github/workflows/assurance.yml) is
+configured for main only, on day 6 of each month at 06:47 UTC. It selects one
+of the 6 current declared root-module fuzz targets using the shared UTC-week
+rotation, with 30 seconds of active exploration. The selected risks are
+finite bounded rejection probabilities, bucket indexes, bounded resource retention,
+counter saturation and safe classifier fallbacks. Injected clocks and random
+sources exercise bounded event histories, not real downstream capacity or
+production overload behavior.
+
+Base-free ordinary checks execute deterministic seeds, not active exploration;
+committed-range CI selects affected active smoke. Manual assurance requires an
+exact anchored selector from the root fuzz operation in `.golib.yaml`, for
+example `^FuzzBoundedEventSequences$`.
+Empty, unknown and malformed selections refuse. The shared job bounds setup
+and execution to ten minutes, active workers and CPU to two, owned memory to
+2 GiB, native output to 1 MiB and private-cache lifetime. Failure, cancellation,
+exhausted budgets and cleanup refusal remain attributable failures. This lane
+does not run mutation or replace Required, original full fuzz budgets,
+explicit `make check-full`, or relevant release qualification.
 
 ## Adding A Module
 
