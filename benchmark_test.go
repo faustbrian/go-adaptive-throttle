@@ -40,6 +40,10 @@ func benchmarkThrottler(b *testing.B, observer Observer) *Throttler {
 	return throttler
 }
 
+// BenchmarkTryAcquireAndRecordHealthy measures healthy admission plus
+// completion for one frozen-clock resource with 120 buckets.
+// Policy/throttler/context setup is excluded by ResetTimer; the first lazy
+// history allocation remains in the loop.
 func BenchmarkTryAcquireAndRecordHealthy(b *testing.B) {
 	throttler := benchmarkThrottler(b, nil)
 	ctx := context.Background()
@@ -56,6 +60,10 @@ func BenchmarkTryAcquireAndRecordHealthy(b *testing.B) {
 	}
 }
 
+// BenchmarkTryAcquireAndRecordWithObserver measures the same healthy
+// admission/completion boundary with a synchronous no-op observer. ResetTimer
+// excludes construction; it isolates dispatch overhead, not realistic observer
+// work.
 func BenchmarkTryAcquireAndRecordWithObserver(b *testing.B) {
 	throttler := benchmarkThrottler(b, func(Event) {})
 	ctx := context.Background()
@@ -72,6 +80,9 @@ func BenchmarkTryAcquireAndRecordWithObserver(b *testing.B) {
 	}
 }
 
+// BenchmarkGoogleSREEquation measures only the equation/cap calculation for
+// fixed 1000 requests, 400 accepts and 800 samples. Fixture setup precedes
+// b.Loop; no locking, history allocation or collaborator dispatch is measured.
 func BenchmarkGoogleSREEquation(b *testing.B) {
 	policy := policyConfig{minimumSamples: 10, acceptsK: 2, maxProbability: 0.9}
 	snapshot := Snapshot{Requests: 1_000, Accepts: 400, Samples: 800}
@@ -81,6 +92,11 @@ func BenchmarkGoogleSREEquation(b *testing.B) {
 	}
 }
 
+// BenchmarkFailsafeGoEquivalentHealthy measures Failsafe-Go healthy permit
+// acquisition plus success recording after builder setup is excluded by
+// ResetTimer. The threshold/minimum/window/cap align with our healthy case, but
+// clocks, ownership and callback policies differ; it is not rejection-feedback
+// parity.
 func BenchmarkFailsafeGoEquivalentHealthy(b *testing.B) {
 	throttler := adaptivethrottler.NewBuilder[struct{}]().
 		WithFailureRateThreshold(0.5, 10, 2*time.Minute).
@@ -96,6 +112,11 @@ func BenchmarkFailsafeGoEquivalentHealthy(b *testing.B) {
 	}
 }
 
+// BenchmarkEquivalentHealthyContention compares parallel healthy
+// acquisition/completion for one resource with equivalent K/sample/window/cap
+// settings. Construction precedes RunParallel but has no explicit timer reset,
+// so one-time setup remains included. Our clock is fixed while Failsafe-Go uses
+// wall time; only healthy-path contention is compared.
 func BenchmarkEquivalentHealthyContention(b *testing.B) {
 	b.Run("adaptive-throttle", func(b *testing.B) {
 		throttler := benchmarkThrottler(b, nil)

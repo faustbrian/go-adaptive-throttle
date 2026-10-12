@@ -18,6 +18,10 @@ type referenceCounts struct {
 	localRejections uint64
 }
 
+// rollingReference is an allocation-heavy map oracle for the bounded
+// positive-epoch transition trace, not a general overflow/negative-time
+// implementation. Its accounting/expiry comparison is independent of the
+// production ring; full signed-time boundaries have separate tests.
 type rollingReference struct {
 	bucketDuration time.Duration
 	bucketCount    int64

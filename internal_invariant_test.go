@@ -8,6 +8,10 @@ import (
 	"time"
 )
 
+// admissionCheckpointContext pauses the pre-lock Err checkpoint so cancellation
+// can occur during state-lock contention. Its optional canceled-error callback
+// proves external context code runs after unlocking; each fixture owns and
+// closes its release channels.
 type admissionCheckpointContext struct {
 	context.Context
 	armed      bool

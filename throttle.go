@@ -1,4 +1,20 @@
-// Package throttle provides process-local probabilistic load shedding.
+// Package throttle provides process-local probabilistic load shedding from
+// rolling requests-versus-accepts history. It is not a hard quota, concurrency
+// limit, authorization control or circuit breaker. Empty/sparse history has zero
+// shedding probability;
+// expected recovery probe flow is not a guaranteed count in a finite interval.
+//
+// Construct a validated Policy, then an independent Throttler. TryAcquire
+// admits before work; its caller-owned Permit records one completion. Execute
+// performs this sequence synchronously. Ordinary failures count as accepted
+// downstream work; the default classifier ignores all errors unless the caller
+// supplies explicit evidence policy.
+//
+// Configuration strings/scales are copied, but collaborators and closure state
+// remain caller-owned and must be bounded/concurrency-safe. Callbacks run
+// outside state locks, can overlap and cannot be preempted by cancellation. The
+// package starts no goroutines and has no Close/drain operation. Reset discards
+// history, not downstream work or caller-held permits.
 package throttle
 
 import (
@@ -20,10 +36,20 @@ var ErrRejected = errors.New("adaptive throttle: rejected locally")
 type Outcome uint8
 
 const (
+	// Accepted counts a successful downstream completion as one request, accept
+	// and sample.
 	Accepted Outcome = iota
+	// DownstreamOverload counts explicit overload as one request/sample, not an
+	// accept.
 	DownstreamOverload
+	// DownstreamFailure counts an ordinary failed completion as one request,
+	// accept and sample.
 	DownstreamFailure
+	// Ignored counts an excluded observation without changing requests, accepts or
+	// samples.
 	Ignored
+	// LocalRejection counts a locally shed application request, never a downstream
+	// sample. It is invalid for Permit.Record and classifier output.
 	LocalRejection
 )
 
@@ -31,58 +57,118 @@ const (
 type Reason uint8
 
 const (
+	// ReasonUnspecified denotes no selected classification reason.
 	ReasonUnspecified Reason = iota
+	// ReasonSuccess denotes a successful operation.
 	ReasonSuccess
+	// ReasonExplicitOverload denotes proven downstream overload evidence.
 	ReasonExplicitOverload
+	// ReasonDownstreamFailure denotes an ordinary completed downstream failure.
 	ReasonDownstreamFailure
+	// ReasonCallerCanceled denotes caller cancellation excluded from history
+	// accounting.
 	ReasonCallerCanceled
+	// ReasonCallerDeadline denotes caller deadline exhaustion excluded from
+	// history accounting.
 	ReasonCallerDeadline
+	// ReasonLocalPolicy denotes local-policy rejection, not downstream overload
+	// evidence.
 	ReasonLocalPolicy
 )
 
-// Classification is a bounded, caller-controlled result classification.
+// Classification identifies one result. Outcome is validated; Reason is a
+// bounded caller-owned byte and is not restricted to the named constants.
 type Classification struct {
+	// Outcome selects request/accept/sample accounting; zero is Accepted.
 	Outcome Outcome
-	Reason  Reason
+	// Reason is caller-provided classification metadata, not a predicate for
+	// accounting.
+	Reason Reason
 }
 
 // Decision is the admission result represented by an event.
 type Decision uint8
 
 const (
+	// DecisionRecorded observes a completed manual or permit record.
 	DecisionRecorded Decision = iota
+	// DecisionAdmit observes admission before downstream completion.
 	DecisionAdmit
+	// DecisionReject observes a locally rejected attempt.
 	DecisionReject
+	// DecisionDryRunAdmit observes a would-reject admission in dry run.
 	DecisionDryRunAdmit
+	// DecisionReset observes one removed history after expiry; ResetAll emits no
+	// event.
 	DecisionReset
 )
 
-// Event is a bounded immutable observation. It intentionally exposes a numeric
-// resource slot rather than the caller's arbitrary resource identity.
+// Event is a copied observation without resource identities, operation payloads
+// or errors. Its Snapshot reflects the recorded state transition; Probability
+// can be the priority-adjusted decision value. Slots are reusable, not
+// permanent identities, and concurrent callback delivery need not follow
+// transition order.
 type Event struct {
-	Decision     Decision
-	Outcome      Outcome
-	Reason       Reason
-	Probability  float64
-	Priority     uint8
+	// Decision distinguishes admission, recording and reset event semantics.
+	Decision Decision
+	// Outcome describes recorded/rejected work. Admit/reset events leave its zero
+	// value; this is not a downstream-success observation.
+	Outcome Outcome
+	// Reason is classification metadata for recorded/rejected work; other events
+	// leave it unspecified.
+	Reason Reason
+	// Probability is priority-adjusted for admission decisions and unscaled for
+	// recorded results. Reset events leave it zero; Snapshot contains aggregate
+	// probability.
+	Probability float64
+	// Priority is the resolved level for admission events; other events leave it
+	// zero.
+	Priority uint8
+	// ResourceSlot is in [1, configured MaxResources] while active and is reused
+	// after reset/eviction.
 	ResourceSlot uint64
-	Snapshot     Snapshot
+	// Snapshot is the copied aggregate at this state transition. Admission events
+	// precede completion; recorded events include the new observation.
+	Snapshot Snapshot
 }
 
-// Snapshot is an immutable aggregate for one bounded resource history.
+// Snapshot is a copied aggregate for one active rolling history. Counters
+// saturate at MaxUint64; an admission does not add a downstream sample until
+// completion. Reading a snapshot expires stale buckets but does not refresh
+// eviction order.
 type Snapshot struct {
-	Revision             string
-	Requests             uint64
-	Accepts              uint64
-	Samples              uint64
-	Overloads            uint64
-	Failures             uint64
-	Ignored              uint64
-	LocalRejections      uint64
-	DryRunRejections     uint64
+	// Revision is the copied bounded policy label, not a resource identity.
+	Revision string
+	// Requests counts Accepted, DownstreamOverload, DownstreamFailure and
+	// LocalRejection, not Ignored.
+	Requests uint64
+	// Accepts counts Accepted and ordinary DownstreamFailure, not only successful
+	// work.
+	Accepts uint64
+	// Samples counts completed Accepted, DownstreamOverload and DownstreamFailure
+	// observations.
+	Samples uint64
+	// Overloads counts explicit DownstreamOverload observations.
+	Overloads uint64
+	// Failures counts ordinary DownstreamFailure observations.
+	Failures uint64
+	// Ignored counts excluded observations without requests, accepts or samples.
+	Ignored uint64
+	// LocalRejections counts application attempts shed before downstream work.
+	LocalRejections uint64
+	// DryRunRejections counts would-reject admissions, independently of their
+	// later completions.
+	DryRunRejections uint64
+	// RejectionProbability is the unscaled current probability before trusted
+	// priority adjustment, zero below MinimumSamples and strictly below the
+	// effective cap.
 	RejectionProbability float64
-	WindowAge            time.Duration
-	ResourceSlot         uint64
+	// WindowAge is bucket-granular age of the oldest nonempty retained bucket;
+	// zero denotes no observations or observations only in the current bucket.
+	WindowAge time.Duration
+	// ResourceSlot identifies the active slot, reused after eviction/reset. It
+	// does not identify a permanent logical resource.
+	ResourceSlot uint64
 }
 
 type bucket struct {
@@ -106,16 +192,25 @@ type resourceState struct {
 	slot     uint64
 }
 
-// Throttler owns bounded mutable process-local histories. It is safe for concurrent use.
+// Throttler owns bounded mutable process-local histories and is safe for
+// concurrent use when its caller-owned collaborators are. Construct with New;
+// nil/zero receivers are not usable throttlers. Do not copy a Throttler after
+// use. The package owns no background goroutines, timers or shutdown resources;
+// it does not limit in-flight work.
 type Throttler struct {
-	policy    policyConfig
+	policy policyConfig
+	// mu owns the resource map, slot allocation, eviction sequence and all buckets.
+	// Caller collaborators run outside it; snapshots copy state before delivery.
 	mu        sync.Mutex
 	resources map[string]*resourceState
 	sequence  uint64
 	slots     []bool
 }
 
-// New constructs an empty throttler from an immutable validated policy.
+// New constructs empty independent histories from a Policy created by
+// NewPolicy, returning nil and *ConfigError for an invalid/zero policy.
+// Collaborator references remain shared; no goroutine or asynchronous lifecycle
+// is started.
 func New(policy Policy) (*Throttler, error) {
 	if policy.config.revision == "" || policy.config.clock == nil || policy.config.random == nil || policy.config.bucketDuration <= 0 || policy.config.bucketCount < 1 || policy.config.maxResources < 1 {
 		return nil, invalid("Policy", "must be created by NewPolicy")
@@ -127,8 +222,12 @@ func New(policy Policy) (*Throttler, error) {
 	}, nil
 }
 
-// Record records one already-attempted result. Local rejection is retained as
-// an application request but never as a downstream sample or failure.
+// Record counts one already-attempted result without admission or
+// classification callbacks. Every valid outcome, including LocalRejection, is
+// accepted; invalid resource/outcome returns *ConfigError before history
+// mutation. Ignored increments only its own counter; LocalRejection increments
+// requests and local rejection but no downstream sample. Observation is
+// synchronous after unlocking.
 func (t *Throttler) Record(resource string, classification Classification) error {
 	if err := validateResource(resource); err != nil {
 		return err
@@ -147,8 +246,16 @@ func (t *Throttler) Record(resource string, classification Classification) error
 	return nil
 }
 
-// TryAcquire probabilistically admits work using history preceding this request.
-// A nil permit with ErrRejected means the protected operation must not run.
+// TryAcquire uses history preceding this decision. A sample strictly
+// below the priority-adjusted probability rejects; equality admits. Success
+// returns a non-nil permit, while ErrRejected returns nil and forbids running
+// protected work. Dry run admits and records the counterfactual instead.
+// Resource keys must be nonempty and at most MaxResourceBytes bytes.
+// Nil context/resource errors are *ConfigError; observed cancellation/deadline
+// is returned directly before state mutation, including rechecks after injected
+// admission collaborators and lock contention. Mutex waiting and synchronous
+// collaborators are not preemptible. Cancellation after admission does not
+// record or revoke the permit.
 func (t *Throttler) TryAcquire(ctx context.Context, resource string) (*Permit, error) {
 	if ctx == nil {
 		return nil, invalid("Context", "must not be nil")
@@ -172,6 +279,8 @@ func (t *Throttler) TryAcquire(ctx context.Context, resource string) (*Permit, e
 		return nil, err
 	}
 
+	// Capture external context methods outside the lock; after contention the
+	// locked checkpoint reads only the channel and unlocks before calling Err.
 	done := ctx.Done()
 	t.mu.Lock()
 	select {
@@ -208,7 +317,11 @@ func (t *Throttler) TryAcquire(ctx context.Context, resource string) (*Permit, e
 	return permit, nil
 }
 
-// Permit represents one admitted execution and accepts at most one completion.
+// Permit is one caller-owned admitted execution with at most one valid
+// completion, safe for concurrent Record calls. Do not copy it after use. It
+// retains its throttler, owned resource key and generation, even after
+// recording/reset/eviction; complete and discard permits promptly. There is no
+// release, timeout or automatic cancellation completion.
 type Permit struct {
 	owner    *Throttler
 	resource string
@@ -217,7 +330,11 @@ type Permit struct {
 	recorded bool
 }
 
-// Record records this admitted execution once.
+// Record consumes one valid admitted completion. Nil/zero permits, invalid
+// outcomes, LocalRejection or a second valid completion return *ConfigError.
+// Invalid outcomes do not consume the permit. A reset/evicted generation
+// consumes completion successfully but produces no history or event; it never
+// recreates or merges a newer history.
 func (p *Permit) Record(classification Classification) error {
 	if p == nil || p.owner == nil {
 		return invalid("Permit", "must not be nil")
@@ -231,8 +348,14 @@ func (p *Permit) Record(classification Classification) error {
 	return nil
 }
 
-// Execute acquires before invoking operation and records its classified result
-// exactly once. A locally rejected execution never invokes operation.
+// Execute admits before synchronously invoking operation once, then classifies
+// and records its returned result/error. Rejection returns the zero T without
+// invoking operation. It returns the operation's original result/error after
+// admission and never retries, sleeps, recovers operation panics or forces
+// cancellation. An operation panic bypasses its completion recording. Nil
+// throttler/operation returns *ConfigError; other admission errors are
+// propagated. Classifier and observer panics are contained by their own
+// contracts.
 func Execute[T any](ctx context.Context, throttler *Throttler, resource string, operation func(context.Context) (T, error)) (T, error) {
 	var zero T
 	if throttler == nil {
@@ -252,6 +375,8 @@ func Execute[T any](ctx context.Context, throttler *Throttler, resource string, 
 }
 
 func (p *Permit) record(classification Classification) bool {
+	// The one-shot flag has its own owner and is released before caller clock
+	// code or the history mutex, so a second completion cannot race into counts.
 	p.mu.Lock()
 	if p.recorded {
 		p.mu.Unlock()
@@ -263,6 +388,8 @@ func (p *Permit) record(classification Classification) bool {
 	t := p.owner
 	now := safeNow(t.policy.clock)
 	t.mu.Lock()
+	// Slots and keys can be reused; pointer identity binds completion to the
+	// admitted generation, preventing reset/eviction from resurrecting history.
 	state, ok := t.resources[p.resource]
 	if ok && state == p.state {
 		b := t.currentBucketLocked(state, now)
@@ -276,7 +403,10 @@ func (p *Permit) record(classification Classification) bool {
 	return true
 }
 
-// Snapshot returns an immutable aggregate without changing eviction order.
+// Snapshot expires buckets and returns a copied aggregate without creating
+// history or changing eviction order. Invalid or missing resource returns a
+// zero Snapshot and false. Expired but retained identities return true with
+// cleared counters.
 func (t *Throttler) Snapshot(resource string) (Snapshot, bool) {
 	if validateResource(resource) != nil {
 		return Snapshot{}, false
@@ -292,8 +422,10 @@ func (t *Throttler) Snapshot(resource string) (Snapshot, bool) {
 	return aggregate(state, t.policy, now), true
 }
 
-// Snapshots returns at most MaxResources immutable snapshots ordered by their
-// stable process-local slot. Arbitrary resource identities are not exposed.
+// Snapshots returns independent aggregates ordered by reusable numeric slot,
+// not identity or recency. It scans every active resource and its buckets
+// (bounded by the configured combined capacity), expires history and leaves
+// eviction order unchanged. It does not expose keys or create new histories.
 func (t *Throttler) Snapshots() []Snapshot {
 	now := safeNow(t.policy.clock)
 	t.mu.Lock()
@@ -309,7 +441,10 @@ func (t *Throttler) Snapshots() []Snapshot {
 	return snapshots
 }
 
-// Reset removes one resource history. Outstanding permits for it become inert.
+// Reset removes a valid existing resource and releases its slot for reuse,
+// making outstanding permits inert. It emits a post-expiry snapshot event
+// outside the lock. Invalid or missing resource returns false; this does not
+// stop downstream work.
 func (t *Throttler) Reset(resource string) bool {
 	if validateResource(resource) != nil {
 		return false
@@ -330,7 +465,9 @@ func (t *Throttler) Reset(resource string) bool {
 	return true
 }
 
-// ResetAll removes every retained history and returns the number removed.
+// ResetAll discards active histories and returns the count removed, making
+// their permits inert. It emits no per-resource events and neither waits for
+// nor cancels in-flight downstream work.
 func (t *Throttler) ResetAll() int {
 	t.mu.Lock()
 	count := len(t.resources)
@@ -378,6 +515,8 @@ func (t *Throttler) resourceLocked(resource string, now time.Time) *resourceStat
 	return state
 }
 
+// resourcePrecedes breaks recency ties by slot, including when the usage
+// sequence saturates, so map iteration cannot choose a nondeterministic victim.
 func resourcePrecedes(left, right *resourceState) bool {
 	return cmp.Or(
 		cmp.Compare(left.lastUsed, right.lastUsed),
@@ -396,6 +535,8 @@ func (t *Throttler) availableSlotLocked() uint64 {
 
 func (t *Throttler) currentBucketLocked(state *resourceState, now time.Time) *bucket {
 	tick := windowTick(now, t.policy.bucketDuration)
+	// Timestamp reversal, even within a bucket, discards stale overload evidence.
+	// Partial rotation also expires ignored/dry-run-only buckets for correct age.
 	if now.Before(state.lastTime) || tick < state.lastTick || forwardGapAtLeast(state.lastTick, tick, t.policy.bucketCount) {
 		clear(state.buckets)
 	} else {
@@ -453,6 +594,8 @@ func rejectionProbability(snapshot Snapshot, policy policyConfig) float64 {
 	if !finite(probability) || math.Signbit(probability) {
 		return 0
 	}
+	// Keep a representable value strictly below the cap; equality would lose
+	// the strict probe-flow bound expected by decision and saturation tests.
 	if probability >= policy.maxProbability {
 		return math.Nextafter(policy.maxProbability, 0)
 	}
@@ -574,6 +717,8 @@ func (t *Throttler) observe(event Event) {
 func windowTick(now time.Time, duration time.Duration) int64 {
 	nanoseconds := now.UnixNano()
 	divisor := int64(duration)
+	// Go division truncates toward zero; ring windows need floor division so
+	// sub-second timestamps before the epoch stay in the preceding bucket.
 	quotient := nanoseconds / divisor
 	if nanoseconds>>63 != 0 && nanoseconds%divisor != 0 {
 		quotient--

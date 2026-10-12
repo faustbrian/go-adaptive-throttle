@@ -10,6 +10,10 @@ import (
 	throttle "github.com/faustbrian/go-adaptive-throttle"
 )
 
+// deterministicStream provides a reproducible single-caller simulation stream,
+// not a cryptographic or concurrent source. Fixed seeds stabilize
+// probability/recovery assertions without claiming production capacity or
+// replica independence.
 type deterministicStream struct{ state uint64 }
 
 func (r *deterministicStream) Float64() float64 {

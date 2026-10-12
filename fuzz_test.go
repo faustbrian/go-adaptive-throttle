@@ -7,6 +7,10 @@ import (
 	"time"
 )
 
+// FuzzGoogleSREProbabilityFiniteAndBounded varies full uint64 counters with
+// bounded multiplier/cap inputs. The equation must remain finite, nonnegative
+// and strictly below its effective cap, including inconsistent synthetic
+// histories and saturated values.
 func FuzzGoogleSREProbabilityFiniteAndBounded(f *testing.F) {
 	f.Add(uint64(8), uint64(3), uint64(8), uint16(20), uint16(800))
 	f.Add(uint64(math.MaxUint64), uint64(0), uint64(math.MaxUint64), uint16(10), uint16(999))
@@ -29,6 +33,11 @@ type fuzzRandom struct{ value float64 }
 
 func (r fuzzRandom) Float64() float64 { return r.value }
 
+// FuzzBoundedEventSequences models at most 4096
+// record/acquire/reset/read/time-change operations over eight keys and four
+// retained histories. Periodic snapshots must have finite bounded probability,
+// and cardinality must remain at most four; this is not a downstream-capacity
+// model.
 func FuzzBoundedEventSequences(f *testing.F) {
 	f.Add([]byte{0, 1, 2, 3, 4, 5, 6})
 	f.Add([]byte{255, 255, 0, 4})
@@ -90,6 +99,9 @@ func FuzzBoundedEventSequences(f *testing.F) {
 	})
 }
 
+// FuzzBucketIndexBounded varies all signed ticks with bucket counts in [1,
+// MaxBuckets]; modulo normalization must always produce a valid ring index,
+// including pre-epoch ticks.
 func FuzzBucketIndexBounded(f *testing.F) {
 	f.Add(int64(-1), uint16(3))
 	f.Add(int64(math.MaxInt64), uint16(MaxBuckets))
@@ -102,6 +114,9 @@ func FuzzBucketIndexBounded(f *testing.F) {
 	})
 }
 
+// FuzzPolicyConfigurationRemainsBounded varies duration/count/capacity and
+// floating-point bit patterns. Rejected configurations are expected; accepted
+// policies must construct and record bounded finite state without overflow.
 func FuzzPolicyConfigurationRemainsBounded(f *testing.F) {
 	f.Add(int64(time.Second), int16(4), uint64(10), math.Float64bits(2), math.Float64bits(0.9), math.Float64bits(0.1), int32(4))
 	f.Add(int64(math.MaxInt64), int16(-1), uint64(math.MaxUint64), math.Float64bits(math.NaN()), math.Float64bits(math.Inf(1)), math.Float64bits(-1), int32(math.MaxInt32))
@@ -134,6 +149,9 @@ func FuzzPolicyConfigurationRemainsBounded(f *testing.F) {
 	})
 }
 
+// FuzzCounterSaturationMatchesReference varies full uint64 addends and compares
+// the production counter sum with an independent overflow-to-MaxUint64
+// reference.
 func FuzzCounterSaturationMatchesReference(f *testing.F) {
 	f.Add(uint64(0), uint64(0))
 	f.Add(uint64(math.MaxUint64-1), uint64(2))
@@ -150,6 +168,9 @@ func FuzzCounterSaturationMatchesReference(f *testing.F) {
 	})
 }
 
+// FuzzClassifierOutcomesFailSafely varies outcome/reason bytes and classifier
+// panics. Invalid or local-rejection outcomes must become Ignored; reason bytes
+// alone are not normalized or validated by this oracle.
 func FuzzClassifierOutcomesFailSafely(f *testing.F) {
 	f.Add(byte(Accepted), byte(ReasonSuccess), false)
 	f.Add(byte(LocalRejection), byte(ReasonLocalPolicy), false)

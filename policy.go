@@ -19,93 +19,175 @@ const (
 
 	// MaxBuckets bounds the memory and per-snapshot work used by one resource.
 	MaxBuckets = 1_024
-	// MaxResources bounds independently retained overload histories.
+	// MaxResources bounds active resource histories per throttler, not histories
+	// retained by caller-held permits after reset or eviction.
 	MaxResources = 65_536
 	// MaxResourceBytes bounds a resource identity retained in memory.
 	MaxResourceBytes = 256
 	// MaxRevisionBytes bounds the policy revision retained in snapshots and events.
 	MaxRevisionBytes = 128
-	// MaxWindowDuration bounds how long overload evidence can remain relevant.
+	// MaxWindowDuration bounds the configured rolling-window span. Expiry is
+	// applied on state access; no background timer removes idle histories.
 	MaxWindowDuration = 24 * time.Hour
-	// MaxRetainedBuckets bounds worst-case aggregate bucket allocation.
+	// MaxRetainedBuckets bounds configured aggregate active-history capacity.
+	// Caller-held permits may retain retired generations outside this bound.
 	MaxRetainedBuckets = 1 << 20
 	// MaxPriorityLevels bounds trusted priority cardinality.
 	MaxPriorityLevels = 8
 )
 
-// Clock supplies timestamps for rolling-window expiration.
-// A panic falls back to current wall-clock time; normal window and admission
-// rules still apply. Implementations must be bounded and concurrency-safe.
+// Clock supplies bounded, concurrency-safe timestamps for window expiration.
+// Calls are synchronous, outside the state lock, and cannot be interrupted by
+// admission cancellation. A panic falls back to wall-clock time; it does not
+// guarantee admission. Returned times must fit time.Time.UnixNano's
+// representable range.
 type Clock interface {
+	// Now returns a timestamp without unbounded work; callers may invoke it
+	// concurrently.
 	Now() time.Time
 }
 
-// Random supplies independent samples. Values must be finite and in [0, 1).
+// Random supplies decision samples, not a cryptographic quota. Interpreting
+// probability as an expected admission rate assumes independent uniform samples.
+// Calls must be bounded and concurrency-safe. Invalid
+// values (including negative zero), values outside [0, 1), and panics fail open
+// for that decision; a blocking source is not preempted.
 type Random interface {
+	// Float64 returns an independent finite sample in [0, 1); implementations must
+	// support concurrent calls.
 	Float64() float64
 }
 
-// Completion is the ephemeral input to a classifier. Classifiers must not
-// retain Context, Result, or Err after returning.
+// Completion borrows the admitted operation's context, result and error for one
+// synchronous classifier call. A classifier must not retain these inputs; the
+// throttler does not store operation payloads or errors.
 type Completion struct {
+	// Context is the borrowed context passed to the admitted operation.
 	Context context.Context
-	Result  any
-	Err     error
+	// Result is the borrowed operation result, including when Err is non-nil.
+	Result any
+	// Err is the original operation error; nil denotes success for the default
+	// classifier.
+	Err error
 }
 
-// Classifier maps one admitted completion to one bounded classification.
+// Classifier maps admitted work to Accepted, DownstreamOverload,
+// DownstreamFailure or Ignored. Explicit overload must represent known
+// downstream evidence, not an ambiguous caller timeout or local rejection.
+// Panics, unknown outcomes and LocalRejection become Ignored/ReasonUnspecified;
+// reason bytes are not separately validated. Calls must be bounded,
+// concurrency-safe and must not retain Completion.
 type Classifier func(Completion) Classification
 
-// Observer receives immutable events after the state lock is released.
+// Observer receives copied Event values synchronously after state locks are
+// released. It may reenter the throttler; concurrent callers may invoke it
+// concurrently and delivery order is not globally serialized. Panics are
+// contained but blocking callbacks delay the caller. Nil disables observation.
+// Callers own callback state and must keep it bounded and concurrency-safe.
 type Observer func(Event)
 
 // Priority is a bounded policy-defined level. Zero is the least privileged.
 type Priority uint8
 
-// PriorityResolver derives priority from trusted caller context.
+// PriorityResolver derives a configured level only from trusted caller context.
+// It runs synchronously outside the state lock and must be
+// bounded/concurrency-safe. A panic or out-of-range level falls back to zero;
+// cancellation cannot preempt a blocking resolver.
 type PriorityResolver func(context.Context) Priority
 
-// PriorityPolicy scales rejection probabilities for trusted priority levels.
-// RejectionScale must begin at 1 and be non-increasing.
+// PriorityPolicy scales shedding for optional trusted priority levels, not hard
+// authorization or capacity controls. An empty scale with nil Resolve disables
+// priority. Otherwise both are required, with at most MaxPriorityLevels
+// entries; construction copies the slice but retains the resolver.
 type PriorityPolicy struct {
+	// RejectionScale contains finite values in [0, 1], beginning at 1 and
+	// non-increasing. Level zero is least privileged; zero scales disable shedding
+	// for that level.
 	RejectionScale []float64
-	Resolve        PriorityResolver
+	// Resolve selects a trusted level into RejectionScale. Nil is valid only with
+	// an empty scale.
+	Resolve PriorityResolver
 }
 
-// WindowConfig defines a fixed-size rolling time window.
+// WindowConfig defines bucket-granular rolling history. Zero fields select
+// one-second buckets and 120 buckets. Negative duration/count or more than
+// MaxBuckets buckets are invalid; the combined span must be at most
+// MaxWindowDuration.
 type WindowConfig struct {
+	// BucketDuration is the positive width of each bucket; zero selects one
+	// second.
 	BucketDuration time.Duration
-	BucketCount    int
+	// BucketCount is retained bucket cardinality; zero selects 120.
+	BucketCount int
 }
 
-// Algorithm is a closed set of probability policies supported by this module.
+// Algorithm is a package-closed policy selector. NewPolicy accepts only a
+// GoogleSRE value (not *GoogleSRE); nil selects GoogleSRE with multiplier two.
 type Algorithm interface{ algorithm() }
 
-// GoogleSRE uses max(0, (requests-K*accepts)/(requests+1)).
+// GoogleSRE uses max(0, (requests-K*accepts)/(requests+1)), as described in the
+// Google SRE overload chapter. Requests include local rejection; ordinary
+// downstream failures count as accepts, not overload. The sample threshold
+// gates calculation; the strict probability cap bounds the result. This is
+// probabilistic feedback, not an absolute quota.
 type GoogleSRE struct {
+	// AcceptMultiplier is K, finite in [1, 1000]. A zero GoogleSRE value is
+	// invalid; a nil Algorithm selects K=2.
 	AcceptMultiplier float64
 }
 
 func (GoogleSRE) algorithm() {}
 
-// PolicyConfig contains construction inputs that are copied into an immutable Policy.
+// PolicyConfig contains construction inputs validated by NewPolicy. Revision and
+// priority
+// scales are copied; collaborator interfaces and function/closure state are
+// retained, not deep-copied. Revision and both probability bounds are required.
+// Nil collaborators select defaults where documented.
 type PolicyConfig struct {
-	Revision                    string
-	Window                      WindowConfig
-	MinimumSamples              uint64
-	Algorithm                   Algorithm
-	MaxRejectionProbability     float64
+	// Revision is required, at most MaxRevisionBytes bytes, and visible in
+	// snapshots/events. It must not contain secrets.
+	Revision string
+	// Window controls expiry resolution and per-resource allocation; bucket count
+	// times resource capacity must not exceed MaxRetainedBuckets.
+	Window WindowConfig
+	// MinimumSamples gates shedding on completed downstream samples; zero selects
+	// 10. Local rejections and ignored completions do not increase it.
+	MinimumSamples uint64
+	// Algorithm selects GoogleSRE; nil uses K=2.
+	Algorithm Algorithm
+	// MaxRejectionProbability is required, finite and strictly between zero and
+	// one.
+	MaxRejectionProbability float64
+	// MinimumAdmissionProbability is required, finite and strictly between zero
+	// and one. The effective cap is min(MaxRejectionProbability,
+	// 1-MinimumAdmissionProbability); no fixed per-interval probe count is
+	// promised.
 	MinimumAdmissionProbability float64
-	MaxResources                int
-	Clock                       Clock
-	Random                      Random
-	Classifier                  Classifier
-	Observer                    Observer
-	DryRun                      bool
-	Priority                    PriorityPolicy
+	// MaxResources bounds active histories, not caller-held permits or downstream
+	// concurrency. Zero selects 1024; at most 65536 resources and the configured
+	// MaxRetainedBuckets combined capacity are admitted.
+	MaxResources int
+	// Clock supplies time; nil selects the system clock, typed nil is invalid.
+	Clock Clock
+	// Random supplies decision samples; nil selects math/rand, typed nil is
+	// invalid.
+	Random Random
+	// Classifier maps Execute results; nil selects conservative default error
+	// classification. Manual Record calls already supply their classification.
+	Classifier Classifier
+	// Observer receives post-lock events; nil disables callbacks.
+	Observer Observer
+	// DryRun admits would-reject decisions and increments DryRunRejections instead
+	// of LocalRejections. Admitted work still requires completion recording.
+	DryRun bool
+	// Priority controls trusted rejection scaling; its zero value disables
+	// priority.
+	Priority PriorityPolicy
 }
 
-// Policy is an immutable, validated throttling policy.
+// Policy is immutable validated configuration created by NewPolicy. Its zero
+// value is rejected by New. Copies construct independent histories but share
+// caller collaborators, whose synchronization remains caller-owned.
 type Policy struct{ config policyConfig }
 
 type policyConfig struct {
@@ -125,19 +207,33 @@ type policyConfig struct {
 	priority       PriorityResolver
 }
 
-// ConfigError reports one invalid policy field without retaining caller data.
+// ConfigError identifies an invalid configuration or API argument.
+// Package-created errors use fixed field/problem categories and retain no
+// caller input. Manually constructed or modified fields are rendered verbatim
+// by Error.
 type ConfigError struct {
-	Field   string
+	// Field names the rejected option or API argument. Package-created values
+	// contain no caller payload.
+	Field string
+	// Problem describes the fixed rejection category; it is not a nested cause.
 	Problem string
 }
 
+// Error formats Field and Problem from a non-nil ConfigError; it does not wrap
+// another error.
 func (e *ConfigError) Error() string {
 	return fmt.Sprintf("adaptive throttle: invalid %s: %s", e.Field, e.Problem)
 }
 
 func invalid(field, problem string) error { return &ConfigError{Field: field, Problem: problem} }
 
-// NewPolicy validates and copies config into an immutable policy.
+// NewPolicy validates defaults and bounds before creating an immutable policy,
+// returning *ConfigError on rejection. It copies Revision and priority scales
+// but retains collaborators. Nil Clock/Random choose wall-clock time/math/rand;
+// typed-nil interfaces are invalid. A nil Classifier accepts nil errors and
+// ignores all errors (matching known cancellation/deadline/local-policy reasons
+// with errors.Is). Such matching can invoke caller Is/Unwrap code and is not a
+// bounded traversal guarantee.
 func NewPolicy(config PolicyConfig) (Policy, error) {
 	if config.Revision == "" {
 		return Policy{}, invalid("Revision", "must not be empty")
@@ -251,6 +347,8 @@ func normalizePriority(policy PriorityPolicy) ([]float64, PriorityResolver, erro
 	if policy.Resolve == nil {
 		return nil, nil, invalid("Priority.Resolve", "must not be nil")
 	}
+	// Copy policy data, not resolver state; reusing a Policy must not let later
+	// caller slice edits alter priority, while collaborator ownership stays external.
 	copyOfScale := append([]float64(nil), policy.RejectionScale...)
 	for index, scale := range copyOfScale {
 		if !finite(scale) || scale < 0 || scale > 1 {
