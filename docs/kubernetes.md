@@ -1,5 +1,8 @@
 # Kubernetes and horizontal scaling
 
+[Documentation map](index.md) · [Repository README](../README.md)
+[Next: API, classification, priority, and migration](api.md)
+
 Every `Throttler` is process-local. Pods can make different decisions because
 they see different traffic, clocks, random streams, resource partitions, and
 policy revisions. This module deliberately has no gossip or pseudo-distributed

@@ -1,5 +1,8 @@
 # Algorithms and numerical behavior
 
+[Documentation map](index.md) · [Repository README](../README.md)
+[Next: API, classification, priority, and migration](api.md)
+
 ## Google SRE requests versus accepts
 
 This module implements the client-side adaptive-throttling model in the

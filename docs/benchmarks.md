@@ -1,5 +1,8 @@
 # Benchmarks and comparative evidence
 
+[Documentation map](index.md) · [Repository README](../README.md)
+[Next: API, classification, priority, and migration](api.md)
+
 ## Reproducibility
 
 Published results below were collected on 2026-08-02 with Go 1.26.5,

@@ -1,5 +1,8 @@
 # Operations, tuning, simulation, and security
 
+[Documentation map](index.md) · [Repository README](../README.md)
+[Next: API, classification, priority, and migration](api.md)
+
 ## Tuning
 
 Start with the Google SRE reference `K=2`, a window long enough to contain

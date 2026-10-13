@@ -1,5 +1,8 @@
 # API, classification, priority, and migration
 
+[Documentation map](index.md) · [Repository README](../README.md)
+[Next: Operations, tuning, simulation, and security](operations.md)
+
 ## Construction
 
 `NewPolicy` validates and copies configuration. Callers cannot mutate its

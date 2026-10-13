@@ -1,5 +1,8 @@
 # FAQ
 
+[Documentation map](index.md) · [Repository README](../README.md)
+[Next: API, classification, priority, and migration](api.md)
+
 ## Is this a circuit breaker?
 
 No. It probabilistically sheds a bounded share while retaining probes. A

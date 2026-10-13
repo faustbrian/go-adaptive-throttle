@@ -1,5 +1,8 @@
 # Composition
 
+[Documentation map](index.md) · [Repository README](../README.md)
+[Next: API, classification, priority, and migration](api.md)
+
 Adaptive throttling belongs immediately above the downstream operation whose
 overload signals it observes. The following order is a starting point, not a
 universal transport stack:
