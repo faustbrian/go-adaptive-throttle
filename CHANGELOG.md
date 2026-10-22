@@ -10,6 +10,12 @@ All notable changes to this module are documented here.
   probabilistic probe flow, completion counting, reusable observer slots and
   caller-held permit lifetime beyond active-history limits.
 
+## 1.1.0 - 2026-10-22
+
+### Changed
+
+- Publish the current source and documentation with a fresh immutable tag.
+
 ## 1.0.3 - 2026-10-06
 
 ### Changed
